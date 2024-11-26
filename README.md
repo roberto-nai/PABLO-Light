@@ -1,7 +1,4 @@
-# PAttern-Based LOcal explanations (PABLO) for Outcome-Based Predictive Process Monitoring
-
-This repository provides the implementation for generating pattern-ware local explanations for Outcome-Base PPM,
-using the PABLO framework introduced in the paper.
+# PAttern-Based LOcal explanations (PABLO) - Light
 
 ## Usage
 To rerun the experiments presented in the paper, we first need to download and unzip the datasets archive file found at this link: https://drive.google.com/file/d/1Jr4RM4dRlbi-aXAxNaifRVGLDOnhlIdN/view?usp=sharing.
