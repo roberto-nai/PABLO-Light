@@ -181,6 +181,6 @@ results/*
 !datasets_synth/.gitkeep
 !results/.gitkeep
 
-# Env
+# My files
 .env
-
+app.log
