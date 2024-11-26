@@ -1,0 +1,36 @@
+Pre-operations:
+1) Upgrade pip, setuptools, and wheel: pip install --upgrade pip setuptools wheel
+2) Virtualenv: install with pip install virtualenv.
+3) Install pyenv: brew install pyenv
+	3.1) Add it to zsh (MacOS sample)
+	echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.zshrc
+	echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.zshrc
+	echo 'eval "$(pyenv init --path)"' >> ~/.zshrc
+	apply changes
+	source ~/.zshrc   # O `source ~/.bashrc`
+	3.2) check installatio: pyenv --version
+4) Install Python 3.10: pyenv install 3.10.12
+	4.1) All available versions: pyenv install --list
+5) Set it as defaultt version: pyenv global 3.10.12
+6) Install graphviz: brew install graphviz
+	6.1) Check installation: dot -version
+	6.2) Check if inserted in PATH
+	echo $PATH | tr ':' '\n'
+	6.3) Check with a script like this
+	from graphviz import Digraph
+	dot = Digraph(comment='Test Graph')
+	dot.node('A', 'Node A')
+	dot.node('B', 'Node B')
+	dot.edge('A', 'B', 'Edge from A to B')
+	print(dot.source)
+	dot.render('test-output', format='png', cleanup=True)
+
+Operations:
+1) In the main PABLO directory create a virtual environment (e.g.: pablo_env) : virtualenv pablo_env
+	1.1) Specify a Python version: /Users/robertonai/.pyenv/versions/3.10.12/bin/python3.10 -m venv pablo_env
+2) Activate the environment: source pablo_env/bin/activate
+	2.1) Check the Python version inside env: python --version
+3) Install the requirements: pip install -e . (or pip install -e . > pip_output.log 2>&1 to save the installation log)
+4) Run the script: python impressed_pipeline_simple_index.py
+5) [When finished] Quit the virtual_evm: deactivate
+6) [Optional] Remove the virtualenv directory (pablo_env): rm -rf pablo_env
