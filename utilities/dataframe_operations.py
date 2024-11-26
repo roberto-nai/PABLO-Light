@@ -43,9 +43,7 @@ def columns_unique_values(df_in: pd.DataFrame, prefix_col_name: str) -> list:
 
     return result
 
-
-
-def encode_activities_positions_and_repetitions(
+def encode_activities_positions_and_repetitions_v1(
     df_in: pd.DataFrame, 
     activity_query: str, 
     case_id_col: str = "case:concept:name", 
@@ -54,8 +52,8 @@ def encode_activities_positions_and_repetitions(
     df_attribute_columns: list = None
 ) -> pd.DataFrame:
     """
-    Process the dataframe to compute activity_first, activity_last, and activity_repetition for a given activity query.
-    Optionally includes additional columns from the first occurrence of each case_id.
+    Process the dataframe to compute activity_first, activity_last, and activity_repetition for a given activity query. Optionally includes additional columns from the first occurrence of each case_id.
+    v1: per normal dataframe.
 
     Parameters:
     - df_in: pd.DataFrame - The input dataframe.
@@ -121,6 +119,64 @@ def encode_activities_positions_and_repetitions(
     # Convert the results into a dataframe
     return pd.DataFrame(results)
 
+
+def encode_activities_positions_and_repetitions_v2(
+    df_in: pd.DataFrame,
+    activity_query: str,
+    case_id_col: str = "trace_id",
+    activity_col_prefix: str = "prefix_",
+    activity_null: int = 0
+) -> pd.DataFrame:
+    """
+    Process the dataframe to compute activity_first, activity_last, and activity_repetition for a given activity query. Resets the counter for each unique case_id.
+    v2: for prefix dataframe.
+
+    Parameters:
+    - df_in: pd.DataFrame - The input dataframe.
+    - activity_query: str - The activity to query in the dataframe.
+    - case_id_col: str, default "trace_id" - The column name representing case IDs.
+    - activity_col_prefix: str, default "prefix_" - The prefix for activity columns.
+    - activity_null: int, default 0 - The value to use if the activity is not found in a case.
+
+    Returns:
+    - pd.DataFrame - A dataframe with columns [case_id_col, activity_first, activity_last, activity_repetition].
+    """
+    results = {
+        case_id_col: [],
+        "activity_first": [],
+        "activity_last": [],
+        "activity_repetition": []
+    }
+
+    # Filter activity columns based on the prefix
+    activity_columns = [col for col in df_in.columns if col.startswith(activity_col_prefix)]
+
+    # Group by the case ID column for better performance
+    grouped = df_in.groupby(case_id_col)
+
+    for case_id, group in grouped:
+        activity_positions = []
+        for idx, col in enumerate(activity_columns):
+            if group[col].eq(activity_query).any():
+                activity_positions.append(idx + 1)  # Convert to 1-based indexing
+
+        if activity_positions:
+            activity_first = activity_positions[0]
+            activity_last = activity_positions[-1]
+            activity_repetition = len(activity_positions)
+        else:
+            activity_first = activity_null
+            activity_last = activity_null
+            activity_repetition = activity_null
+
+        # Append results
+        results[case_id_col].append(case_id)
+        results["activity_first"].append(activity_first)
+        results["activity_last"].append(activity_last)
+        results["activity_repetition"].append(activity_repetition)
+
+    # Convert results dictionary into a dataframe
+    return pd.DataFrame(results)
 def dictionary_unique_values(data: dict, exclude_keys: list) -> list:
     """
     Extracts unique values from a dictionary while excluding specific keys.
@@ -143,7 +199,6 @@ def dictionary_unique_values(data: dict, exclude_keys: list) -> list:
 
     # Return a sorted list of unique values
     return sorted(distinct_values)
-
 
 def get_distinct_column_values(df: pd.DataFrame, col_name: str, n: int = 0) -> list:
     """

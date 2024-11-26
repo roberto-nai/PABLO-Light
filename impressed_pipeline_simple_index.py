@@ -50,7 +50,7 @@ from nirdizati_light.predictive_model.predictive_model import PredictiveModel, d
 from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
-from utilities.dataframe_operations import encode_activities_positions_and_repetitions, dictionary_unique_values, get_distinct_column_values
+from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values
 from utilities.general_utilities import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
@@ -117,10 +117,10 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         # print("Prefix and not encoded df columns:",full_df_named.columns)
 
         # Saving prefix encoded (full_df with activities encoded, full_df_named with activities not encoded)
-        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P{CONF['prefix_length']}_E{encoding}_activity_encoded.csv"
+        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_E-{encoding}_activity_encoded.csv"
         print("Saving encoded dataframe to:", path_enc)
         full_df.to_csv(path_enc, sep = ",", index = False)
-        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P{CONF['prefix_length']}_E{encoding}_activity_named.csv"
+        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_E-{encoding}_activity_named.csv"
         print("Saving encoded (with activity names) dataframe to:", path_enc)
         full_df_named.to_csv(path_enc, sep = ",", index = False)
 
@@ -131,10 +131,19 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         ### Distinct activities in the generated prefix (obtained from the encoder) ###
         print(">>>> Distinct activities in the generated prefix")
         # full_df / full_df_named
-        list_activities_prefix = dictionary_unique_values(encoder._label_dict_decoder, ['label']) # List of strings
+        list_activities_prefix = dictionary_unique_values(encoder._label_dict_decoder, ['label']) # List of strings, ['label'] excluded
         list_activities_prefix_len = len(list_activities_prefix)
         # print(f"Distinct activities found in the prefix ({list_activities_prefix_len}): {list_activities_prefix}") # debug
         print(f"Distinct activities found in the prefix: {list_activities_prefix_len}")
+        
+        # Order the list list_activities_prefix
+        sorted_activity_names = sorted(list_activities_prefix)
+        # Create a dataframe with the distinct atrivities to track them
+        df_activities = pd.DataFrame({"activity_num": range(1, len(sorted_activity_names) + 1),"activity_name": sorted_activity_names})
+        path_activities = Path(datasets_sublog_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_activity_list.csv"
+        print("Saving activities list to:", path_activities)
+        df_activities.to_csv(path_activities, sep=',', index=False)
+        print()
 
         ### Predictive model on prefix dataframe - Training ###
         print(">>>> Predictive model - Training")
@@ -247,7 +256,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 print(f"Sublog [{j}] shape:", df_sublog.shape)
                 print(f"Sublog [{j}] distinct cases:", df_sublog['trace_id'].nunique())
-                path_sub = Path(datasets_sublog_dir) / f"{dataset_name}_P{CONF['prefix_length']}_S{j}_A{activity_name}.csv"
+                path_sub = Path(datasets_sublog_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}.csv"
                 print("Saving sublog to:", path_sub)
                 df_sublog.to_csv(path_sub, sep = ",", index = False)
 
@@ -346,7 +355,6 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                     # Set the name of the case ID following the row index x (Case01 and Case01 are row 0 factual and counter-factual)
                     synth_log['case:concept:name'] = synth_log['case:concept:name'].apply(lambda v: v.replace('Case', f'Case{x}'))
-                    synth_log = synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
                     print(synth_log.head(5))
 
                     synth_logs.append(synth_log)
@@ -366,19 +374,34 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 "Query_CaseID",
                 "likelihood"]
                 final_synth_log = final_synth_log[desired_order]
-                
-                path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P{CONF['prefix_length']}_S{j}_A{activity_name}_row{nrows}-{df_sublog_len}_synth.csv"
+
+                final_synth_log = final_synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
+
+                path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth.csv"
                 print("Saving synthetic data of sublog [{j}] to:", path_synth)
                 final_synth_log.to_csv(path_synth, sep = ",", index = False)
+
+                ### Creating an encoding based on activity repetitions from the original prefix dataframe ###
+                print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
+                encoding_prefix_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_prefix_pos_enc.csv"
+                print(f"Saving encoded position of prefix activities to:", path_position)
+                encoding_prefix_df.to_csv(path_position, sep = ",", index = False)
 
                 ### Creating an encoding based on activity sublog repetitions ###
                 print(">>>> Creating an encoding based on activity sublog repetitions")
                 print("Activity query (same as sublog):", activity_name)
                 df_attribute_columns = ["likelihood", "Complete Timestamp", "case:label", "Query_CaseID"]
-                encoding_positions_df = encode_activities_positions_and_repetitions(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P{CONF['prefix_length']}_S{j}_A{activity_name}_rows{nrows}-{df_sublog_len}_synth_pos.csv"
-                print(f"Saving synthetic data of sublog [{j}] to:", path_synth)
+                encoding_positions_df = encode_activities_positions_and_repetitions_v1(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
+                
+                encoding_positions_df = encoding_positions_df.sort_values(by=['Query_CaseID', 'case:concept:name'], ascending=True)
+
+                # Left-Join the encoding_positions_df with encoding_positions_df
+                
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv"
+                print(f"Saving encoded position of sublog [{j}] activities to:", path_position)
                 encoding_positions_df.to_csv(path_position, sep = ",", index = False)
+
                 quit()
 
                 logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')

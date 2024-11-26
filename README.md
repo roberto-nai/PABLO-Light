@@ -5,12 +5,24 @@ To rerun the experiments presented in the paper, we first need to download and u
 Make sure that the datasets are placed within the project PABLO folder inside datasets folder.
 Afterwards, a Conda/virtualenv environment has to be setup (see ```_virtualenv``` for instructions), then the requirements can be installed by opening a Terminal instance, going to the PABLO folder and running following command: ```pip install -e .```
 
-The simple-index results can be obtained by running the ```python impressed_pipeline_simple_index.py```.
+The simple-index pipeline can by processed by running the ```python impressed_pipeline_simple_index.py```.
 
-To adjust the datasets to be run, or the prefix lengths considered, update the ```datasets.json```.  
-```
+To adjust the datasets to be run, or the prefix lengths considered, update JSON configuration file ```datasets.json```.  
 
-@TODO: Additional instructions will be included in the README.md as soon as possible. 
+## Output
+
+### /datasets_encoded  
+Contains prefixes (P) and its encoding (E).  
+
+### /datasets_positions
+Contains encoding of activity positions after synthesised data generation (/datasets_synth).  
+
+### /datasets_sublog  
+Contains the sublogs of each case id, created on the basis of the generated prefix (/datasets_encoded).  
+
+### /datasets_synth
+Contains the synthetic dataset, generated from the sublogs (/datasets_sublog).  
+
 
 
 @TODO: timestamps in dice_impressed functions
