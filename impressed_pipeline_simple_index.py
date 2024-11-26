@@ -237,12 +237,14 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 case_ids_with_activity = full_df_named[full_df_named[prefix_columns].apply(lambda row: activity_name in row.astype(str).values, axis=1)]['trace_id'].unique()
                 case_ids_with_activity_len = len(case_ids_with_activity)
                 print(f"Distinct cases containing activity '{activity_name}': {case_ids_with_activity_len}")
-                # quit()
-
-                #@TODO: remove all the columns not needed
 
                 # Filter the dataframe to include only rows belonging to the identified cases
                 df_sublog = full_df_named[full_df_named['trace_id'].isin(case_ids_with_activity)]
+                
+                # In the sublog, keep the same columns as in full_df (or test_df)
+                # print(list(full_df.columns))
+                df_sublog = df_sublog[full_df.columns]
+
                 print(f"Sublog [{j}] shape:", df_sublog.shape)
                 print(f"Sublog [{j}] distinct cases:", df_sublog['trace_id'].nunique())
                 path_sub = Path(datasets_sublog_dir) / f"{dataset_name}_P{CONF['prefix_length']}_S{j}_A{activity_name}.csv"
@@ -326,6 +328,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     
                     time_start = datetime.now() # time to do the explain task - start
                     # full_df.iloc[:, 1:] -> Selects all rows and all columns, excluding the first column (with index 0)
+                    # use test_df instead of full_df
                     synth_log, x_eval, label_list = explain(CONF, predictive_model, encoder=encoder,
                                                             cf_df=full_df.iloc[:, 1:],
                                                             query_instance = query_instance, query_case_id = case_id, 
@@ -343,7 +346,9 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                     # Set the name of the case ID following the row index x (Case01 and Case01 are row 0 factual and counter-factual)
                     synth_log['case:concept:name'] = synth_log['case:concept:name'].apply(lambda v: v.replace('Case', f'Case{x}'))
-                    print(synth_log.head())
+                    synth_log = synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
+                    print(synth_log.head(5))
+
                     synth_logs.append(synth_log)
 
                     time_end = datetime.now()
