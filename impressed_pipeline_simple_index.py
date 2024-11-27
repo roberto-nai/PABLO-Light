@@ -11,7 +11,7 @@ Changelog:
 [2024-11-25]: Added config.yml and relative files to read it.
 [2024-11-25]: Added utilities.dataframe_operations, utilities.general_utilities, utilities.json_operations.
 [2024-11-25]: Moved some constant in the config.yml.
-[2024-11-27]: Added initial convertion of file XES to CSV.
+[2024-11-27]: Added initial conversion of file XES to CSV.
 """
 
 ### IMPORT ###
