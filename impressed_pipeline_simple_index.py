@@ -11,7 +11,7 @@ Changelog:
 [2024-11-25]: Added config.yml and relative files to read it.
 [2024-11-25]: Added utilities.dataframe_operations, utilities.general_utilities, utilities.json_operations.
 [2024-11-25]: Moved some constant in the config.yml.
-
+[2024-11-27]: Added initial convertion of file XES to CSV.
 """
 
 ### IMPORT ###
@@ -33,6 +33,9 @@ from declare4py.declare4py import Declare4Py
 from declare4py.enums import TraceState
 from pathlib import Path # @RNAI
 import re # @RNAI
+from pm4py.objects.log.util import dataframe_utils # @RNAI
+from pm4py.objects.log.importer.xes import importer as xes_importer # @RNAI
+from pm4py.objects.conversion.log import converter as log_converter # @RNAI
 
 ### LOCAL IMPORT ###
 from dataset_confs import DatasetConfs
@@ -91,9 +94,28 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
     # print(dataset)
     # print(CONF['data'])
     
-    print(">>>> Extracting dataset configuration")
+    ### Load the dataset (event log) ###
+    print(">>>> Extracting dataset")
+    
     logger.debug(f'LOAD DATA - {dataset_name}')
+    
+    # Get the dataset format (from file extension)
+    file_extension = Path(CONF['data']).suffix[1:]
+    print("File format extension:", file_extension.upper())
+
+    # Extract the log from file 
     log = get_log(filepath=CONF['data'])
+    # log is a pm4py.objects.log.obj.EventLog instance
+
+    # convert the log into dataframe and CSV (if needed)
+    if file_extension.lower() != "csv":
+        print("Converting the source event log to Dataframe and CSV")
+        log_csv = log_converter.apply(log, variant=log_converter.Variants.TO_DATA_FRAME)
+        print("Dataframe shape:", log_csv.shape)
+        path_csv = Path(CONF['data']).with_suffix('.csv')
+        print("Saving event log into CSV:", path_csv)
+        log_csv.to_csv(path_csv, sep=",", index=False)
+
     logger.debug('Update EVENT ATTRIBUTES')
     dataset_confs = DatasetConfs(dataset_name=dataset_name, where_is_the_file=CONF['data'])
     print(dataset_confs)
@@ -685,7 +707,8 @@ if __name__ == '__main__':
     print("Path:", path_json)
     datasets_list = extract_data_from_json(path_json)
     datasets_list_len = len(datasets_list)
-    print(f"Datasets found in JSON configuration ({datasets_list_len}):\n", datasets_list, sep="")
+    # print(f"Datasets found in JSON configuration ({datasets_list_len}):\n", datasets_list, sep="")
+    print(f"Datasets found in JSON configuration:", datasets_list_len)
     print()
     
     if datasets_list_len <= 0:

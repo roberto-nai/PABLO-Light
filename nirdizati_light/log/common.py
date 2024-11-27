@@ -12,7 +12,6 @@ def import_log_csv(path):
 
 
 
-
 def get_log(filepath):
     """Read in event log from disk
     Uses xes_importer to parse log.
