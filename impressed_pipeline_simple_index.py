@@ -54,7 +54,7 @@ from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
 from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values
-from utilities.general_utilities import create_directory, create_nested_directory
+from utilities.general_operations import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
 
@@ -85,7 +85,12 @@ output_data_dir = str(yaml_config["OUTPUT_DATA"])
 prefix_col_name = str(yaml_config["PREFIX_COL_NAME"])
 datasets_encoded_dir = str(yaml_config["DATASETS_ENCODED_DIR"])
 
+### results dictionary ###
+dic_res = {'datase_name':None, 'prefix_len':None, 'prefix_len':None, 'encoding_name':None, 'activity_name': None, 'sublog_cases': None, 'local_fidelity':None, 'file_encoded': None}
+list_res = []
+
 def run_simple_pipeline(CONF=None, dataset_name=None):
+
     ### RANDOM BASED ON SEED ###
     random.seed(CONF['seed'])
     np.random.seed(CONF['seed'])
@@ -126,6 +131,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
     encodings = [EncodingType.SIMPLE.value]
 
     for encoding in encodings:
+
         CONF['feature_selection'] = encoding
         print("Encoding type:", encoding)
 
@@ -244,7 +250,10 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
             dynamic_cols = [*dataset_confs.activity_col.values()] + [timestamp]
             
             ### Sub-log ###
-            # For each distinct activity in the list, it extracts all rows (cases) of the dataframe in which the activity appears at least once 
+            # For each distinct activity in the list, it extracts all rows (cases) of the dataframe in which the activity appears at least once
+            
+            logger.debug(f'Creating sublogs for each activity')
+
             print(">>>> Sublogs")
             
             j = 0
@@ -252,6 +261,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
             # Remove the null activity from the list of activities to be searched in sublog
             list_activities_prefix = [activity for activity in list_activities_prefix if activity != str(CONF['activity_null'])]
             
+            time_start_sublog = datetime.now() # time to do the sublog tasks
+
             for activity_name in list_activities_prefix:
                 j+=1
                 print(f"[{j}] Creating sublog with activity '{activity_name}'")
@@ -293,7 +304,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print(">>>> Generating a factual and counter-factual (flipped) for every case in sublog")
                 synth_logs = [] # List with all the syntetic logs generated
                 df_sublog_len = len(df_sublog)
-                nrows = int(df_sublog_len / 20) # For testing, divide the number of rows
+                nrows = int(df_sublog_len / CONF["rows_ratio"]) # For testing, divide the number of rows of a ration (1 = all)
                 print(f"Rows considered: {nrows} / {df_sublog_len}")
 
                 # Get the case ID of the sublog, 
@@ -304,6 +315,9 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print("Distinct cases considered:", list_cases_len)
 
                 x = 0
+                
+                logger.debug(f'Creating sublogs for activity {activity_name}')
+
                 for case_id_sublog in list_cases:
                     x+=1
                     # print("Query instance index:", x)
@@ -357,7 +371,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     # print("timestamps_query")
                     # print(timestamps_query.head(10))
                     
-                    time_start = datetime.now() # time to do the explain task - start
+                    # time_start = datetime.now() # time to do the explain task - start
                     # full_df.iloc[:, 1:] -> Selects all rows and all columns, excluding the first column (with index 0)
                     # use test_df instead of full_df
                     synth_log, x_eval, label_list = explain(CONF, predictive_model, encoder=encoder,
@@ -381,12 +395,12 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                     synth_logs.append(synth_log)
 
-                    time_end = datetime.now()
+                    # time_end = datetime.now()
 
-                    time_cf = (time_end - time_start).total_seconds() # time_delta to do the explain task - start
+                    # time_cf = (time_end - time_start).total_seconds() # time_delta to do the explain task - start
 
-                ### Creating an unique synth_log ###
-                print(">>>> Creating an unique synth_log")
+                ### Creating an unique synth_log from all the synth cases ###
+                print(">>>> Creating an unique synth_log from all the synth cases")
                 final_synth_log = pd.concat(synth_logs, ignore_index=True)
                 desired_order = [
                 "case:concept:name",
@@ -395,38 +409,134 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 "case:label",
                 "Query_CaseID",
                 "likelihood"]
+
                 final_synth_log = final_synth_log[desired_order]
 
                 final_synth_log = final_synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
+
+                final_synth_log_cases = final_synth_log['Query_CaseID'].nunique() # number of distinct cases in the final synth log
 
                 path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth.csv"
                 print("Saving synthetic data of sublog [{j}] to:", path_synth)
                 final_synth_log.to_csv(path_synth, sep = ",", index = False)
 
                 ### Creating an encoding based on activity repetitions from the original prefix dataframe ###
-                print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
-                encoding_prefix_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_prefix_pos_enc.csv"
-                print(f"Saving encoded position of prefix activities to:", path_position)
-                encoding_prefix_df.to_csv(path_position, sep = ",", index = False)
+                logger.debug('Creating an encoding based on activity repetitions from the original prefix dataframe')
 
-                ### Creating an encoding based on activity sublog repetitions ###
+                print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
+                encoding_prefix_act_pos_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_origin_pos_enc.csv" # save the encoding of the original dataframe
+                
+                # Rename the obtained values (_o for original columns))
+                column_rename_mapping = {
+                'activity_first': 'activity_first_o',
+                'activity_last': 'activity_last_o',
+                'activity_repetition': 'activity_repetition_o'
+                }
+
+                encoding_prefix_act_pos_df.rename(columns=column_rename_mapping, inplace=True)
+
+                print(f"Saving encoded position of original prefix activities to:", path_position)
+                encoding_prefix_act_pos_df.to_csv(path_position, sep = ",", index = False)
+
+                ### Creating an encoding based on activity repetitions from the synthetic prefix dataframe ###
+                
+                logger.debug('Creating an encoding based on activity sublog repetition')
+
                 print(">>>> Creating an encoding based on activity sublog repetitions")
                 print("Activity query (same as sublog):", activity_name)
                 df_attribute_columns = ["likelihood", "Complete Timestamp", "case:label", "Query_CaseID"]
-                encoding_positions_df = encode_activities_positions_and_repetitions_v1(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
+                encoding_synth_act_pos_df = encode_activities_positions_and_repetitions_v1(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
                 
-                encoding_positions_df = encoding_positions_df.sort_values(by=['Query_CaseID', 'case:concept:name'], ascending=True)
+                encoding_synth_act_pos_df = encoding_synth_act_pos_df.sort_values(by=['Query_CaseID', 'case:concept:name'], ascending=True)
 
-                # Left-Join the encoding_positions_df with encoding_positions_df
-                
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv"
+                # Columns renaming (_s for synth columns)
+                encoding_synth_act_pos_df = encoding_synth_act_pos_df.rename(
+                    columns={
+                        'activity_first': 'activity_first_s',
+                        'activity_last': 'activity_last_s',
+                        'activity_repetition': 'activity_repetition_s',
+                        'Complete Timestamp': 'Complete Timestamp_s'
+                    }
+                )
+
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv" # save the encoding of the synthetic dataframe
                 print(f"Saving encoded position of sublog [{j}] activities to:", path_position)
-                encoding_positions_df.to_csv(path_position, sep = ",", index = False)
+                encoding_synth_act_pos_df.to_csv(path_position, sep = ",", index = False)
 
-                quit()
+                ### Add the original prefixes to the synthetic ones ###
 
-                logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
+                # Left-Join the encoding_positions_df with encoding_prefix_df
+                join_synth_orig_df = encoding_synth_act_pos_df.merge(encoding_prefix_act_pos_df, how='left', left_on='Query_CaseID', right_on='trace_id')
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding 
+                print(f"Saving joint position of sublog [{j}] activities to:", path_position)
+                join_synth_orig_df.to_csv(path_position, sep = ",", index = False)
+                
+
+                ### DT (white-box) prediction on the joint dataframe ###
+                
+                logger.debug('DT (white-box) on joint dataframe')
+
+                testing_percentage = 0.2
+                likelihood_mean = join_synth_orig_df['likelihood'].mean()
+                col_drop = ['likelihood', 'case:concept:name', 'Complete Timestamp_s', 'Query_CaseID']
+                join_synth_orig_df.drop(columns=col_drop,inplace=True)
+                join_synth_orig_df.rename(columns={"case:label": "label"}, inplace=True)
+
+                # training, validation, and test starting from the join_synth_orig_df
+                # stratify to get same label distribution of the original df
+
+                train, test = train_test_split(join_synth_orig_df, test_size=testing_percentage, random_state=42, stratify=join_synth_orig_df['label']) 
+                train_dt, val_dt = train_test_split(train, test_size=testing_percentage, random_state=42, stratify=train['label'])
+
+                DT_CONF = CONF.copy()
+                DT_CONF['predictive_model'] = ClassificationMethods.DT.value
+                DT_CONF['hyperparameter_optimisation_target'] = HyperoptTarget.F1.value
+                
+                # Ensure that all the columns have name fo string type
+                train = train.rename(str, axis="columns")
+                test = test.rename(str, axis="columns")
+                val_dt = val_dt.rename(str, axis="columns")
+
+                glass_box = PredictiveModel(DT_CONF, DT_CONF['predictive_model'], train_dt, val_dt)
+                if DT_CONF['hyperparameter_optimisation']:
+                        glass_box.model, glass_box.config = retrieve_best_model(
+                            glass_box,
+                            DT_CONF['predictive_model'],
+                            max_evaluations=DT_CONF['hyperparameter_optimisation_epochs'],
+                            target=DT_CONF['hyperparameter_optimisation_target'], seed=DT_CONF['seed']
+                            )
+
+                glass_box_preds = glass_box.model.predict(drop_columns(test))
+                scores = glass_box.model.predict_proba(drop_columns(test))
+                local_evaluate_glassbox = evaluate_classifier(test['label'], glass_box_preds, scores)
+                local_fidelity = round(local_evaluate_glassbox['accuracy'],3)
+                print('Local fidelity:', round(local_fidelity,3))
+
+                ### Save results and timing ###
+        
+                time_end_sublog = datetime.now()
+
+                time_delta_sublog_s = round((time_end_sublog- time_start_sublog).total_seconds(),2) # time_delta to do the explain task - start
+                time_delta_sublog_m = round((time_end_sublog - time_start_sublog).total_seconds() / 60, 2)  # Misura in minuti
+
+                print("Delta timing (min):", time_delta_sublog_m)
+
+                print(">>>> Saving the results")
+                dic_res = {'datase_name':dataset_name, 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity':local_fidelity, 'sublog_delta_m':time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
+                print(dic_res)
+                data_list = [dic_res]
+                df_res = pd.DataFrame(data_list)
+                path_res = Path(results_dir) / f"{dataset_name}_lf_results.csv"
+                print("Path:", path_res)
+                logger.debug('Saving results to:', path_res)
+                if path_res.exists():
+                    df_res.to_csv(path_res, mode='a', index=False, header=False)
+                else:
+                    df_res.to_csv(path_res, mode='w', index=False, header=True)
+
+                # logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
+                """
                 if impressed_pipeline:
                     discovery_type = 'auto'
                     case_id_col = 'case:concept:name'
@@ -665,6 +775,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print(dataset_name,'impressed_pipeline',impressed_pipeline,
                         'LOCAL FIDELITY',local_fidelity, 'GLOBAL FIDELITY', global_fidelity,'time_discovery',time_discovery,'time_cf',time_cf,
                       'time_alignment',time_alignment,'neighborhood_size',neighborhood_size,'number_of_patterns')
+                """
 
 if __name__ == '__main__':
     print()
@@ -690,6 +801,9 @@ if __name__ == '__main__':
 
     print("Output directory:", datasets_position_dir)
     create_directory(datasets_position_dir)
+
+    print("Output directory:", results_dir)
+    create_directory(results_dir)
 
     list_dir_results = [results_dir, simple_index_dir]
     print("Output directories:", list_dir_results)
@@ -736,6 +850,8 @@ if __name__ == '__main__':
         dataset_name = item['dataset_name']
         print("Dataset name:", dataset_name)
         compute = item["dataset_compute"]
+        rows_ratio = int(item["rows_ratio"]) # Ratio of lines to be parsed to the total (1 = all)
+        print("Dataset rows ratio (1 = all):", rows_ratio)
         if compute == 0:
             print("Dataset skipped (compute = 0)")
             continue
@@ -768,6 +884,7 @@ if __name__ == '__main__':
                     'output': path_output.as_posix(), # @TODO: where is used
                     'prefix_length_strategy': PrefixLengthStrategy.FIXED.value,
                     'prefix_length': prefix_length,
+                    'rows_ratio': rows_ratio,
                     'padding': True,  # @TODO: why use of padding?
                     'feature_selection': EncodingType.SIMPLE_TRACE.value,
                     'task_generation_type': TaskGenerationType.ONLY_THIS.value,
@@ -788,7 +905,11 @@ if __name__ == '__main__':
                     'activity_null': 0
                 }
                 print(">>> Starting the pipeline")
+
+                dic_res
+                
                 run_simple_pipeline(CONF=CONF, dataset_name=dataset_name)
+                
                 print()
 
     end_time = datetime.now().replace(microsecond=0)

@@ -1,3 +1,9 @@
+"""
+predictive_model.py
+
+[2024-11-16]: Added column control in drop_columns
+"""
+
 import logging
 
 #import tensorflow as tf
@@ -21,8 +27,12 @@ logger = logging.getLogger(__name__)
 
 
 def drop_columns(df: DataFrame) -> DataFrame:
-    df = df.drop(['trace_id', 'label'],axis=1)
-    return df
+    df_clean = df.copy()
+    if 'trace_id' in df_clean.columns:
+        df_clean = df_clean.drop(['trace_id'],axis=1)
+    if 'label' in df_clean.columns:
+        df_clean = df_clean.drop(['label'],axis=1)
+    return df_clean
 
 class PredictiveModel:
 

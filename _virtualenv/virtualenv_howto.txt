@@ -1,4 +1,8 @@
-Pre-operations:
+Pre-operations for Python 3.10 (MacOS):
+0) brew update
+0) brew install python@3.10
+0) python3.10 -m ensurepip --upgrade
+0) python3.10 -m pip install --upgrade pip
 1) Upgrade pip, setuptools, and wheel: pip install --upgrade pip setuptools wheel
 2) Virtualenv: install with pip install virtualenv.
 3) Install pyenv: brew install pyenv
@@ -27,7 +31,7 @@ Pre-operations:
 
 Operations:
 1) In the main PABLO directory create a virtual environment (e.g.: pablo_env) : virtualenv pablo_env
-	1.1) Specify a Python version: /Users/robertonai/.pyenv/versions/3.10.12/bin/python3.10 -m venv pablo_env
+	1.1) Specify a Python version: ../3.10.12/bin/python3.10 -m venv pablo_env
 2) Activate the environment: source pablo_env/bin/activate
 	2.1) Check the Python version inside env: python --version
 3) Install the requirements: pip install -e . (or pip install -e . > pip_output.log 2>&1 to save the installation log)

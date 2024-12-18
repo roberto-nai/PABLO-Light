@@ -4,7 +4,7 @@ dataframe_operations.py
 Description: Utilities on pandas dataframe structures.
 
 Changelog:
-[2024-11-25]: Added get_unique_values.
+[2024-11-25]: Added get_distinct_column_values.
 
 """
 
@@ -119,7 +119,6 @@ def encode_activities_positions_and_repetitions_v1(
     # Convert the results into a dataframe
     return pd.DataFrame(results)
 
-
 def encode_activities_positions_and_repetitions_v2(
     df_in: pd.DataFrame,
     activity_query: str,
@@ -177,6 +176,7 @@ def encode_activities_positions_and_repetitions_v2(
 
     # Convert results dictionary into a dataframe
     return pd.DataFrame(results)
+
 def dictionary_unique_values(data: dict, exclude_keys: list) -> list:
     """
     Extracts unique values from a dictionary while excluding specific keys.
