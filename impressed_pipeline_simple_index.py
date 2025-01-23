@@ -510,30 +510,50 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 glass_box_preds = glass_box.model.predict(drop_columns(test))
                 scores = glass_box.model.predict_proba(drop_columns(test))
                 local_evaluate_glassbox = evaluate_classifier(test['label'], glass_box_preds, scores)
-                local_fidelity = round(local_evaluate_glassbox['accuracy'],3)
-                print('Local fidelity:', round(local_fidelity,3))
+                local_fidelity = round(local_evaluate_glassbox['accuracy'], 3)
+                print('Local fidelity:', round(local_fidelity, 3))
+
+                ### Get DT Feature importance ###
+                features_cols = drop_columns(train_dt).columns
+                features_imp = glass_box.model.feature_importances_
+                feature_importances_df = pd.DataFrame({
+                'feature': features_cols,
+                'importance': features_imp
+                })
+                feature_importances_df = feature_importances_df.sort_values(by='importance', ascending=False)
 
                 ### Save results and timing ###
         
                 time_end_sublog = datetime.now()
 
                 time_delta_sublog_s = round((time_end_sublog- time_start_sublog).total_seconds(),2) # time_delta to do the explain task - start
-                time_delta_sublog_m = round((time_end_sublog - time_start_sublog).total_seconds() / 60, 2)  # Misura in minuti
+                time_delta_sublog_m = round((time_end_sublog - time_start_sublog).total_seconds() / 60, 2)  # time_delta in minutes
 
                 print("Delta timing (min):", time_delta_sublog_m)
 
                 print(">>>> Saving the results")
-                dic_res = {'datase_name':dataset_name, 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity':local_fidelity, 'sublog_delta_m':time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
+
+                # Saving DT results
+                dic_res = {'datase_name':dataset_name, 'model': ClassificationMethods.DT.name, 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity_accuracy':local_fidelity, 'sublog_delta_m': time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
                 print(dic_res)
                 data_list = [dic_res]
                 df_res = pd.DataFrame(data_list)
-                path_res = Path(results_dir) / f"{dataset_name}_lf_results.csv"
-                print("Path:", path_res)
-                logger.debug('Saving results to:', path_res)
+                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results.csv"
+                print(f"Path of model '{ClassificationMethods.DT.name}' results:", path_res)
+                logger.debug('Saving DT results to:', path_res)
                 if path_res.exists():
                     df_res.to_csv(path_res, mode='a', index=False, header=False)
                 else:
                     df_res.to_csv(path_res, mode='w', index=False, header=True)
+                
+                # Saving DT features importance
+                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.csv"
+                print(f"Path of '{ClassificationMethods.DT.name}' feature importance:", path_res)
+                logger.debug('Saving DT results feature importance to:', path_res)
+                if path_res.exists():
+                    feature_importances_df.to_csv(path_res, mode='a', index=False, header=False)
+                else:
+                    feature_importances_df.to_csv(path_res, mode='w', index=False, header=True)
 
                 # logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
                 """

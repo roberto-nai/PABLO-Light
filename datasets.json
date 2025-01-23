@@ -10,6 +10,16 @@
         "rows_ratio": 1
     },
     {
+        "dataset_name": "synthetic_log_001",
+        "case_id_column": "case:concept:name",
+        "activity_column": "concept:name",
+        "timestamp_column": "time:timestamp",
+        "prefix_list": [5, 10],
+        "train_val_test_split": [0.7, 0.15, 0.15],
+        "dataset_compute": 1,
+        "rows_ratio": 1
+    },
+    {
         "dataset_name": "bpic2012_O_CANCELLED-COMPLETE",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
