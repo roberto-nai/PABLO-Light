@@ -526,16 +526,20 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 local_fidelity = round(local_evaluate_glassbox['accuracy'], 3)
                 print('Local fidelity:', round(local_fidelity, 3))
 
-                ### Get DT Feature importance ###
+                ### Get DT features importance ###
                 features_cols = drop_columns(train_dt).columns
                 features_imp = glass_box.model.feature_importances_
                 feature_importances_df = pd.DataFrame({
-                'file_name': path_position.as_posix(),
+                'dataset_name': dataset_name,
+                'model': ClassificationMethods.DT.name, 
+                'prefix_len': CONF['prefix_length'],
+                'encoding_name': encoding,
                 'activity': activity_name,
                 'feature': features_cols,
-                'importance': features_imp
+                'importance': features_imp,
+                'file_name': path_position.as_posix()
                 })
-                feature_importances_df = feature_importances_df.sort_values(by='importance', ascending=False)
+                feature_importances_df = feature_importances_df.sort_values(by=['feature','importance'], ascending=[True, False])
 
                 ### Save results and timing ###
         

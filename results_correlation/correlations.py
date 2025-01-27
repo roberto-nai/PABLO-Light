@@ -23,6 +23,12 @@ search_name = "synthetic_log_001"  # <-- INPUT: name of the dataset
 
 plot = False # <-- INPUT: if plots are needed
 
+# Define columns to ignore
+ignored_columns = ["case:concept:name", "Query_CaseID", "trace_id", "likelihood"]  # <-- INPUT
+        
+# Define target column
+target_column = "case:label" # <-- INPUT
+
 def find_matching_csv_files(directory: Path, name: str) -> list:
     """
     Finds all CSV files in the given directory that contain the specified name
@@ -155,26 +161,25 @@ def main():
         
         # Load dataset
         df = pd.read_csv(file_path)
-        
-        # Define columns to ignore
-        ignored_columns = ["case:concept:name", "Query_CaseID", "trace_id", "likelihood"]
-        
-        # Define target column
-        target_column = "case:label"
 
         # Perform correlation analysis
         correlation_results = analyse_correlations(df, target_column, ignored_columns, file_path.name, plot)
         all_results.append(correlation_results)
+    print()
 
     # Combine results from all files
     if all_results:
+        print("Comining all results")
         final_results_df = pd.concat(all_results, ignore_index=True)
+        final_results_df = final_results_df.sort_values(by=["activity_name", "feature"])
+        print(final_results_df.head())
         file_out = f"{search_name}_correlations.csv"
         path_out = Path(correlation_dir) / file_out
         print("Saving correlation results to:", path_out)
         final_results_df.to_csv(path_out, sep=";", index=False)
     else:
         print("No results for", directory)
+    print()
 
 # Run main function
 if __name__ == "__main__":
