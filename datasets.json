@@ -6,7 +6,7 @@
         "timestamp_column": "time:timestamp",
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
-        "dataset_compute": 1,
+        "dataset_compute": 0,
         "rows_ratio": 1
     },
     {

@@ -4,7 +4,7 @@ common.py
 Description: .
 
 Changelog:
-[2024-11-25]: Added the return of the dataframe with the activity names in the prefix, before encoding.
+[2024-11-25]: Added the return of the dataframe with the activity names in the prefix, before encoding (df_org = df.copy()).
 
 """
 
@@ -56,7 +56,7 @@ TRACE_TO_DF = {
 
 
 def get_encoded_df(log: EventLog, CONF: dict=None, encoder: Encoder=None, train_cols: DataFrame=None, train_df=None) -> (Encoder, DataFrame):
-    logger.debug('SELECT FEATURES')
+    logger.debug('get_encoded_df: SELECT FEATURES')
     df = TRACE_TO_DF[CONF['feature_selection']](
         log,
         prefix_length=CONF['prefix_length'],
@@ -68,7 +68,7 @@ def get_encoded_df(log: EventLog, CONF: dict=None, encoder: Encoder=None, train_
         target_event=CONF['target_event'],
     )
 
-    logger.debug('EXPLODE DATES')
+    logger.debug('get_encoded_df: EXPLODE DATES')
     df = time_encoding(df, CONF['time_encoding'])
 
     logger.debug('ALIGN DATAFRAMES')
@@ -78,10 +78,10 @@ def get_encoded_df(log: EventLog, CONF: dict=None, encoder: Encoder=None, train_
     df_org = df.copy() # @RNAI: added to have also activity name
 
     if not encoder:
-        logger.debug('INITIALISE ENCODER')
+        logger.debug('get_encoded_df: INITIALISE ENCODER')
         encoder = Encoder(df=df, attribute_encoding=CONF['attribute_encoding'],feature_selection=CONF['feature_selection'],
                           prefix_length=CONF['prefix_length'])
-    logger.debug('ENCODE')
+    logger.debug('get_encoded_df: ENCODE')
     encoder.encode(df=df)
     
     return encoder, df, df_org

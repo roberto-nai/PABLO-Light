@@ -12,12 +12,13 @@ Changelog:
 [2024-11-25]: Added utilities.dataframe_operations, utilities.general_utilities, utilities.json_operations.
 [2024-11-25]: Moved some constant in the config.yml.
 [2024-11-27]: Added initial conversion of file XES to CSV.
+[2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump
 """
 
 ### IMPORT ###
 import logging
 import warnings
-import os
+# import os
 import numpy as np
 import pandas as pd
 import pm4py
@@ -122,8 +123,15 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         log_csv.to_csv(path_csv, sep=",", index=False)
 
     logger.debug('Update EVENT ATTRIBUTES')
+    print(f"Extracting dataset configuration for '{dataset_name}'")
     dataset_confs = DatasetConfs(dataset_name=dataset_name, where_is_the_file=CONF['data'])
-    print(dataset_confs)
+    print(dataset_confs.__dict__) # debug
+    file_json = f"{dataset_name}.json"
+    path_json = Path(datasets_dir) / dataset_name / file_json
+    print("Saving dataset configuration in:", path_json)
+    with open(path_json, "w", encoding="utf-8") as f:
+        json.dump(dataset_confs.__dict__, f, ensure_ascii=True, indent=4)
+    print()
     
     print(">>>> Prefix and Encoding data")
     logger.debug('ENCODE DATA')
@@ -243,7 +251,10 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
             diversity = 1.0
             sparsity = 0.5
             proximity = 1.0
+            print("qui 1")
+            print(dataset_confs)
             timestamp = [*dataset_confs.timestamp_col.values()][0]
+            print("qui 2")
             # neighborhood_size = 75
             ### Neighborhood ###
             neighborhood_size = 1 # @RNAI: 1 from factual, 1 for counter-factual (flipped)
@@ -401,11 +412,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 ### Creating an unique synth_log from all the synth cases ###
                 print(">>>> Creating an unique synth_log from all the synth cases")
+                print("TCOL:", dataset_confs.timestamp_col[dataset_name])
                 final_synth_log = pd.concat(synth_logs, ignore_index=True)
                 desired_order = [
                 "case:concept:name",
                 "concept:name",
-                "Complete Timestamp",
+                # "Complete Timestamp",
+                dataset_confs.timestamp_col[dataset_name],
                 "case:label",
                 "Query_CaseID",
                 "likelihood"]
@@ -517,6 +530,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 features_cols = drop_columns(train_dt).columns
                 features_imp = glass_box.model.feature_importances_
                 feature_importances_df = pd.DataFrame({
+                'file_name': path_position.as_posix(),
+                'activity': activity_name,
                 'feature': features_cols,
                 'importance': features_imp
                 })

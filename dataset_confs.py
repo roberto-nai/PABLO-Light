@@ -286,9 +286,10 @@ class DatasetConfs:
             self.static_cat_cols = {dataset: []}
             self.dynamic_num_cols = {dataset: ["start:timestamp"]}
             self.static_num_cols = {dataset: ['AMOUNT_REQ']}
-        elif dataset_name in ["sepsis_cases_1_start"]:
+        elif dataset_name in ["synthetic_log_001"]:
             #### Artifical event log: case:concept:name,concept:name,time:timestamp,event_nr,label ####
             dataset = dataset_name
+            self.dataset_name = dataset_name
             if where_is_the_file != '':
                 self.filename = {dataset: where_is_the_file}
             else:
