@@ -133,7 +133,7 @@ def analyse_correlations(df: pd.DataFrame, target_column: str, ignored_columns: 
                     "target_col": target_column,
                     "std": round(std,3),
                     "correlation_type": correlation_type,
-                    "correlation_value": correlation_value,
+                    "correlation_value": round(correlation_value,4),
                     "file_name": file_name
                 })
 
