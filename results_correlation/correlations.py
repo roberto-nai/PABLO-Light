@@ -127,13 +127,14 @@ def analyse_correlations(df: pd.DataFrame, target_column: str, ignored_columns: 
 
                 # Store results
                 results.append({
-                    "file_name": file_name,
+                    "dataset_name": search_name,
                     "activity_name": activity_name,
+                    "feature_col": col,
+                    "target_col": target_column,
                     "std": round(std,3),
                     "correlation_type": correlation_type,
-                    "target_column": target_column,
-                    "feature": col,
-                    "correlation_value": correlation_value
+                    "correlation_value": correlation_value,
+                    "file_name": file_name
                 })
 
     # Return DataFrame with results
@@ -171,7 +172,7 @@ def main():
     if all_results:
         print("Comining all results")
         final_results_df = pd.concat(all_results, ignore_index=True)
-        final_results_df = final_results_df.sort_values(by=["activity_name", "feature"])
+        final_results_df = final_results_df.sort_values(by=["activity_name", "correlation_value"], ascending=[True, False])
         print(final_results_df.head())
         file_out = f"{search_name}_correlations.csv"
         path_out = Path(correlation_dir) / file_out
