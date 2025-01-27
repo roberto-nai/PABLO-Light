@@ -174,7 +174,7 @@ def main():
         final_results_df = pd.concat(all_results, ignore_index=True)
         final_results_df = final_results_df.sort_values(by=["activity_name", "correlation_value"], ascending=[True, False])
         print(final_results_df.head())
-        file_out = f"{search_name}_correlations.csv"
+        file_out = f"{search_name}_corr.csv"
         path_out = Path(correlation_dir) / file_out
         print("Saving correlation results to:", path_out)
         final_results_df.to_csv(path_out, sep=";", index=False)
