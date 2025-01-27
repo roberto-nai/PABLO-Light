@@ -553,7 +553,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print(dic_res)
                 data_list = [dic_res]
                 df_res = pd.DataFrame(data_list)
-                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results.csv"
+                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results_lfa.csv"
                 print(f"Path of model '{ClassificationMethods.DT.name}' results:", path_res)
                 logger.debug('Saving DT results to:', path_res)
                 if path_res.exists():
