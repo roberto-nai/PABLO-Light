@@ -32,7 +32,7 @@ single_prefix = ['loreley','loreley_complex']
 
 def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query_case_id, method, support,optimization,
                  timestamp_col_name,model_path,neighborhood_size,random_seed=None,diversity_weight=None,sparsity_weight=None,proximity_weight=None,
-                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None):
+                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None):
     features_names = cf_df.columns.values[:-1]
     feature_selection = CONF['feature_selection']
     dataset = ''.join(CONF['data'].split('/')[2:3]).replace('.xes', '')
@@ -142,31 +142,66 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
             total_traces += batch_size
             print('Total traces generated',total_traces,'/',k)
     else:
-        # counterfactual (flipped)
-        dice_result_flip = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
-                                                                        desired_class=int(1 - predicted_outcome),
-                                                                        verbose=False,
-                                                                        posthoc_sparsity_algorithm='linear',
-                                                                        total_CFs=k,
-                                                                        dataset=dataset + '_' + str(
-                                                                            CONF['prefix_length']),
-                                                                        #proximity_weight=proximity_weight,
-                                                                        #diversity_weight=diversity_weight,
-                                                                        #sparsity_weight=sparsity_weight,
-                                                                        random_seed=random_seed)
-        # factual
-        dice_result_same = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
-                                                                        desired_class=int(predicted_outcome),
-                                                                        verbose=False,
-                                                                        posthoc_sparsity_algorithm='linear',
-                                                                        total_CFs=k,
-                                                                        dataset=dataset + '_' + str(
-                                                                            CONF['prefix_length']),
-                                                                        #proximity_weight=proximity_weight,
-                                                                        #diversity_weight=diversity_weight,
-                                                                        #sparsity_weight=sparsity_weight,
-                                                                        random_seed=random_seed
-                                                                        )
+        if optimization == 'genetic':
+            dice_result_flip = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
+                                                                            desired_class=int(1 - predicted_outcome),
+                                                                            verbose=False,
+                                                                            posthoc_sparsity_algorithm='linear',
+                                                                            total_CFs=k,
+                                                                            dataset=dataset + '_' + str(
+                                                                                CONF['prefix_length']),
+                                                                            proximity_weight=proximity_weight,
+                                                                            diversity_weight=diversity_weight,
+                                                                            sparsity_weight=sparsity_weight,
+                                                                            categorical_penalty=0.0,
+                                                                            # feature_weights=feature_weights,
+                                                                            random_seed=random_seed)
+
+            dice_result_same = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
+                                                                            desired_class=int(predicted_outcome),
+                                                                            verbose=False,
+                                                                            posthoc_sparsity_algorithm='linear',
+                                                                            total_CFs=k,
+                                                                            dataset=dataset + '_' + str(
+                                                                                CONF['prefix_length']),
+                                                                            proximity_weight=proximity_weight,
+                                                                            diversity_weight=diversity_weight,
+                                                                            sparsity_weight=sparsity_weight,
+                                                                            categorical_penalty=0.0,
+                                                                            # feature_weights=feature_weights,
+                                                                            random_seed=random_seed
+                                                                            )
+        elif optimization == 'genetic_conformance':
+            dice_result_flip = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
+                                                                            desired_class=int(1 - predicted_outcome),
+                                                                            verbose=False,
+                                                                            posthoc_sparsity_algorithm='linear',
+                                                                            total_CFs=k, dataset=dataset + '_' + str(
+                    CONF['prefix_length']),
+                                                                            model_path=model_path,
+                                                                            proximity_weight=proximity_weight,
+                                                                            diversity_weight=diversity_weight,
+                                                                            sparsity_weight=sparsity_weight,
+                                                                            categorical_penalty=0.0,
+                                                                            # feature_weights=feature_weights,
+                                                                            random_seed=random_seed,
+                                                                            adapted=adapted)
+            dice_result_same = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
+                                                                            desired_class=int(predicted_outcome),
+                                                                            verbose=False,
+                                                                            posthoc_sparsity_algorithm='linear',
+                                                                            total_CFs=k, dataset=dataset + '_' + str(
+                    CONF['prefix_length']),
+                                                                            model_path=model_path,
+                                                                            proximity_weight=proximity_weight,
+                                                                            diversity_weight=diversity_weight,
+                                                                            sparsity_weight=sparsity_weight,
+                                                                            categorical_penalty=0.0,
+                                                                            # feature_weights=feature_weights,
+                                                                            random_seed=random_seed,
+                                                                            adapted=adapted)
+
+
         # dice_result_flip and dice_result_same are CounterfactualExplanations object
         
         generated_cfs_flip = dice_result_flip.cf_examples_list[0].final_cfs_df
