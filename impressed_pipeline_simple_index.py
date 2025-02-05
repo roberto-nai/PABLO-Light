@@ -1,7 +1,7 @@
 """
 impressed_pipeline_simple_index.py
 
-Description: 
+Description:
 
 Changelog:
 [2024-11-25]: Added logging.basicConfig() to save application log to file.
@@ -99,17 +99,17 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
     # dataset = CONF['data'].rpartition('/')[0].replace('datasets/','')
     # print(dataset)
     # print(CONF['data'])
-    
+
     ### Load the dataset (event log) ###
     print(">>>> Extracting dataset")
-    
+
     logger.debug(f'LOAD DATA - {dataset_name}')
-    
+
     # Get the dataset format (from file extension)
     file_extension = Path(CONF['data']).suffix[1:]
     print("File format extension:", file_extension.upper())
 
-    # Extract the log from file 
+    # Extract the log from file
     log = get_log(filepath=CONF['data'])
     # log is a pm4py.objects.log.obj.EventLog instance
 
@@ -132,10 +132,10 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
     with open(path_json, "w", encoding="utf-8") as f:
         json.dump(dataset_confs.__dict__, f, ensure_ascii=True, indent=4)
     print()
-    
+
     print(">>>> Prefix and Encoding data")
     logger.debug('ENCODE DATA')
-    
+
     encodings = [EncodingType.SIMPLE.value]
 
     for encoding in encodings:
@@ -163,7 +163,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         # encoder object with data inside (encoded activities)
         # print(encoder._label_dict)
         # print(encoder._label_dict_decoder)
-    
+
         ### Distinct activities in the generated prefix (obtained from the encoder) ###
         print(">>>> Distinct activities in the generated prefix")
         # full_df / full_df_named
@@ -171,7 +171,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         list_activities_prefix_len = len(list_activities_prefix)
         # print(f"Distinct activities found in the prefix ({list_activities_prefix_len}): {list_activities_prefix}") # debug
         print(f"Distinct activities found in the prefix: {list_activities_prefix_len}")
-        
+
         # Order the list list_activities_prefix
         sorted_activity_names = sorted(list_activities_prefix)
         # Create a dataframe with the distinct atrivities to track them
@@ -234,9 +234,9 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         logger.debug('COMPUTE EXPLANATION')
 
         if CONF['explanator'] is ExplainerType.DICE_IMPRESSED.value:
-            
+
             print("Explainer type:", ExplainerType.DICE_IMPRESSED.value)
-            
+
             impressed_pipeline = CONF['impressed_pipeline']
 
             ### From the test_df (used for the black-box), extracts rows with correct model predictions (based on the dataset can be 0 or 1) ###
@@ -247,7 +247,12 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 test_df_correct = test_df[(test_df['label'] == predicted) & (test_df['label'] == 0)]
 
             method = 'oneshot'
-            optimization = 'genetic'
+            optimization = 'genetic_conformance'  # 'genetic_conformance' or 'genetic',
+            # 'genetic_conformance' considers conformance checking inside the fitness function
+            if optimization == 'genetic_conformance':
+                adapted = False
+            else:
+                adapted = None
             diversity = 1.0
             sparsity = 0.5
             proximity = 1.0
@@ -259,19 +264,19 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
             ### Neighborhood ###
             neighborhood_size = 1 # @RNAI: 1 from factual, 1 for counter-factual (flipped)
             dynamic_cols = [*dataset_confs.activity_col.values()] + [timestamp]
-            
+
             ### Sub-log ###
             # For each distinct activity in the list, it extracts all rows (cases) of the dataframe in which the activity appears at least once
-            
+
             logger.debug(f'Creating sublogs for each activity')
 
             print(">>>> Sublogs")
-            
+
             j = 0
-            
+
             # Remove the null activity from the list of activities to be searched in sublog
             list_activities_prefix = [activity for activity in list_activities_prefix if activity != str(CONF['activity_null'])]
-            
+
             time_start_sublog = datetime.now() # time to do the sublog tasks
 
             for activity_name in list_activities_prefix:
@@ -281,7 +286,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 if activity_name == str(CONF['activity_null']):
                     print(f"Sublog [{j}] skipped, activity null: {CONF['activity_null']}")
                     continue
-                
+
                 # Identify the columns matching the "prefix_*" pattern
                 prefix_columns = [col for col in full_df_named.columns if re.match(r'prefix_\d+$', col)]
 
@@ -293,7 +298,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 # Filter the dataframe to include only rows belonging to the identified cases
                 df_sublog = full_df_named[full_df_named['trace_id'].isin(case_ids_with_activity)]
-                
+
                 # In the sublog, keep the same columns as in full_df (or test_df)
                 # print(list(full_df.columns))
                 df_sublog = df_sublog[full_df.columns]
@@ -305,20 +310,20 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 df_sublog.to_csv(path_sub, sep = ",", index = False)
 
                 ### Generating a factual and counter-factual (flipped) for every case ###
-                # Starting from the test_df_correct (the correct model prediction dataset), generate 
+                # Starting from the test_df_correct (the correct model prediction dataset), generate
                 print(">>>> Generating factual and counter-factual (flipped) for every case of the sublog")
                 # print(range(len(test_df_correct.iloc[:50,:])))
                 # test_df_correct.iloc[:50,:] -> first 50 rows -> range(0, 50)
                 # @RNAI: do query_instance for every entry (case) in sublog
                 # for x in range(len(test_df_correct.iloc[:50,:])):
-                
+
                 print(">>>> Generating a factual and counter-factual (flipped) for every case in sublog")
                 synth_logs = [] # List with all the syntetic logs generated
                 df_sublog_len = len(df_sublog)
                 nrows = int(df_sublog_len / CONF["rows_ratio"]) # For testing, divide the number of rows of a ration (1 = all)
                 print(f"Rows considered: {nrows} / {df_sublog_len}")
 
-                # Get the case ID of the sublog, 
+                # Get the case ID of the sublog,
                 # extract the row from the dataframe prefix encoded (full_df) as query_instance
                 # make counter-factual
                 list_cases = get_distinct_column_values(df_sublog, 'trace_id', nrows)
@@ -326,13 +331,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print("Distinct cases considered:", list_cases_len)
 
                 x = 0
-                
+
                 logger.debug(f'Creating sublogs for activity {activity_name}')
 
                 for case_id_sublog in list_cases:
                     x+=1
                     # print("Query instance index:", x)
-                    
+
                     # query_instance = test_df_correct.iloc[x, :].to_frame().T # Dataframe with only 1 row and n columns of test_df_correct
                     # query_instance = df_sublog.iloc[x, :].to_frame().T # Dataframe with only 1 row and n columns of test_df_correct
                     query_instance = full_df[full_df['trace_id'] == case_id_sublog].head(1)
@@ -350,12 +355,12 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     discovery_path = output_path+'%s_discovery_%s_%s_%s_%s' % (dataset_name, impressed_pipeline, CONF['seed'],case_id,CONF['prefix_length'])
                     print("Discovery path:", discovery_path) # e.g.  bpic2012_O_ACCEPTED-COMPLETE_discovery_True_48_207518_20
                     """
-                    
+
                     # Drop the trace_id and label columns inside the train_df used in the black-box model
                     columns = drop_columns(train_df).columns
                     # print("Columns")
                     # print(columns)
-                    
+
                     # Generates a list which containing all columns in the columns list except those that contain the string ‘Timestamp’ in their name.
                     features_to_vary = [column for column in columns if 'Timestamp' not in column]
                     # print("features_to_vary")
@@ -363,34 +368,34 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     if len(features_to_vary) == 0:
                         features_to_vary = [column for column in columns if 'time' not in column]
                     # print(features_to_vary)
-                    
+
                     # Generates a list containing the column names of a subset of full_df_timestamps that contain the string ‘timestamp’ in their name.
                     timestamps = [col for col in full_df_timestamps.iloc[query_instance.index].columns if 'timestamp' in col]
                     if len(timestamps) == 0:
                         timestamps = [col for col in full_df_timestamps.iloc[query_instance.index].columns if 'Timestamp' in col]
                     # print("timestamps")
                     # print(timestamps)
-                    
+
                     # Generates a new DataFrame df from a subset of rows (query_instance) and columns (timestamps) of full_df_timestamps.
                     df = full_df_timestamps.loc[query_instance.index][timestamps].reset_index()
                     # print("df")
                     # print(df.head(10))
-                    
+
                     timestamps_query = pd.DataFrame(np.repeat(df.values, neighborhood_size*2, axis=0))
                     timestamps_query.columns = df.columns
                     timestamps_query.drop(columns=['index'], inplace=True)
                     # print("timestamps_query")
                     # print(timestamps_query.head(10))
-                    
+
                     # time_start = datetime.now() # time to do the explain task - start
                     # full_df.iloc[:, 1:] -> Selects all rows and all columns, excluding the first column (with index 0)
                     # use test_df instead of full_df
                     synth_log, x_eval, label_list = explain(CONF, predictive_model, encoder=encoder,
                                                             cf_df=full_df.iloc[:, 1:],
-                                                            query_instance = query_instance, query_case_id = case_id, 
+                                                            query_instance = query_instance, query_case_id = case_id,
                                                             method=method, optimization=optimization,
                                                             timestamp_col_name=timestamp,
-                                                            # model_path = model_path, 
+                                                            # model_path = model_path,
                                                             model_path = model_path_str,
                                                             random_seed=CONF['seed'],
                                                             neighborhood_size=neighborhood_size,
@@ -398,7 +403,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                                                             diversity_weight=diversity, proximity_weight=proximity,
                                                             features_to_vary=features_to_vary,
                                                             impressed_pipeline=impressed_pipeline,
-                                                            dynamic_cols=dynamic_cols, timestamps=timestamps_query)
+                                                            dynamic_cols=dynamic_cols, timestamps=timestamps_query,
+                                                            adapted=adapted)
 
                     # Set the name of the case ID following the row index x (Case01 and Case01 are row 0 factual and counter-factual)
                     synth_log['case:concept:name'] = synth_log['case:concept:name'].apply(lambda v: v.replace('Case', f'Case{x}'))
@@ -439,7 +445,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
                 encoding_prefix_act_pos_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
                 path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_origin_pos_enc.csv" # save the encoding of the original dataframe
-                
+
                 # Rename the obtained values (_o for original columns))
                 column_rename_mapping = {
                 'activity_first': 'activity_first_o',
@@ -453,14 +459,14 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 encoding_prefix_act_pos_df.to_csv(path_position, sep = ",", index = False)
 
                 ### Creating an encoding based on activity repetitions from the synthetic prefix dataframe ###
-                
+
                 logger.debug('Creating an encoding based on activity sublog repetition')
 
                 print(">>>> Creating an encoding based on activity sublog repetitions")
                 print("Activity query (same as sublog):", activity_name)
                 df_attribute_columns = ["likelihood", "Complete Timestamp", "case:label", "Query_CaseID"]
                 encoding_synth_act_pos_df = encode_activities_positions_and_repetitions_v1(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
-                
+
                 encoding_synth_act_pos_df = encoding_synth_act_pos_df.sort_values(by=['Query_CaseID', 'case:concept:name'], ascending=True)
 
                 # Columns renaming (_s for synth columns)
@@ -481,13 +487,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 # Left-Join the encoding_positions_df with encoding_prefix_df
                 join_synth_orig_df = encoding_synth_act_pos_df.merge(encoding_prefix_act_pos_df, how='left', left_on='Query_CaseID', right_on='trace_id')
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding 
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding
                 print(f"Saving joint position of sublog [{j}] activities to:", path_position)
                 join_synth_orig_df.to_csv(path_position, sep = ",", index = False)
-                
+
 
                 ### DT (white-box) prediction on the joint dataframe ###
-                
+
                 logger.debug('DT (white-box) on joint dataframe')
 
                 testing_percentage = 0.2
@@ -499,13 +505,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 # training, validation, and test starting from the join_synth_orig_df
                 # stratify to get same label distribution of the original df
 
-                train, test = train_test_split(join_synth_orig_df, test_size=testing_percentage, random_state=42, stratify=join_synth_orig_df['label']) 
+                train, test = train_test_split(join_synth_orig_df, test_size=testing_percentage, random_state=42, stratify=join_synth_orig_df['label'])
                 train_dt, val_dt = train_test_split(train, test_size=testing_percentage, random_state=42, stratify=train['label'])
 
                 DT_CONF = CONF.copy()
                 DT_CONF['predictive_model'] = ClassificationMethods.DT.value
                 DT_CONF['hyperparameter_optimisation_target'] = HyperoptTarget.F1.value
-                
+
                 # Ensure that all the columns have name fo string type
                 train = train.rename(str, axis="columns")
                 test = test.rename(str, axis="columns")
@@ -531,7 +537,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 features_imp = glass_box.model.feature_importances_
                 feature_importances_df = pd.DataFrame({
                 'dataset_name': dataset_name,
-                'model': ClassificationMethods.DT.name, 
+                'model': ClassificationMethods.DT.name,
                 'prefix_len': CONF['prefix_length'],
                 'encoding_name': encoding,
                 'activity': activity_name,
@@ -542,7 +548,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 feature_importances_df = feature_importances_df.sort_values(by=['feature','importance'], ascending=[True, False])
 
                 ### Save results and timing ###
-        
+
                 time_end_sublog = datetime.now()
 
                 time_delta_sublog_s = round((time_end_sublog- time_start_sublog).total_seconds(),2) # time_delta to do the explain task - start
@@ -564,7 +570,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     df_res.to_csv(path_res, mode='a', index=False, header=False)
                 else:
                     df_res.to_csv(path_res, mode='w', index=False, header=True)
-                
+
                 # Saving DT features importance
                 path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.csv"
                 print(f"Path of '{ClassificationMethods.DT.name}' feature importance:", path_res)
@@ -847,7 +853,7 @@ if __name__ == '__main__':
     list_dir_results = [results_dir, simple_index_dir]
     print("Output directories:", list_dir_results)
     create_nested_directory(list_dir_results)
-    
+
     list_dir_results = [results_dir, process_models_dir]
     print("Output directories:", list_dir_results)
     create_nested_directory(list_dir_results)
@@ -863,7 +869,7 @@ if __name__ == '__main__':
     # print(f"Datasets found in JSON configuration ({datasets_list_len}):\n", datasets_list, sep="")
     print(f"Datasets found in JSON configuration:", datasets_list_len)
     print()
-    
+
     if datasets_list_len <= 0:
         print("No dataset informations found, quitting the program")
         quit()
@@ -933,7 +939,7 @@ if __name__ == '__main__':
                     'explanator': ExplainerType.DICE_IMPRESSED.value,  # SHAP, LRP, ICE, DICE
                     'threshold': 13,
                     'top_k': 10,
-                    'hyperparameter_optimisation': True,  
+                    'hyperparameter_optimisation': True,
                     'hyperparameter_optimisation_target': HyperoptTarget.AUC.value,
                     'hyperparameter_optimisation_epochs': 20,
                     'time_encoding': TimeEncodingType.NONE.value,
@@ -946,9 +952,9 @@ if __name__ == '__main__':
                 print(">>> Starting the pipeline")
 
                 dic_res
-                
+
                 run_simple_pipeline(CONF=CONF, dataset_name=dataset_name)
-                
+
                 print()
 
     end_time = datetime.now().replace(microsecond=0)
@@ -959,7 +965,7 @@ if __name__ == '__main__':
     print("Time to process:", str(delta_time))
     print("Time to process in min:", str(delta_min))
     print("Time to process in sec:", str(delta_sec))
-    print() 
+    print()
 
     print()
     print("*** PROGRAM END ***")
