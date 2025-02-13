@@ -5,7 +5,8 @@ Description: .
 
 Changelog:
 [2024-11-25]: Added Query_CaseID to factual and counter-factual event_log before returning it.
-
+[2025-02-07]: Added activity_origin_position as dice_impressed() parameter.
+[2025-02-07]: Added activity_origin_name as dice_impressed() parameter.
 """
 
 import logging
@@ -32,7 +33,19 @@ single_prefix = ['loreley','loreley_complex']
 
 def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query_case_id, method, support,optimization,
                  timestamp_col_name,model_path,neighborhood_size,random_seed=None,diversity_weight=None,sparsity_weight=None,proximity_weight=None,
-                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None):
+                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None, activity_origin_position = None, activity_origin_name = None):
+    
+    """
+    Args:
+        activity_origin_position: the position of the activity in the original log (to be compare with the position in the syntetic log)
+        activity_origin_name: the name of the activity in the original log (to be compared with the position in the syntetic log)
+    """
+    logger.debug("dice_impressed()")
+    logger.debug(f"Activity original position received in dice_impressed(): {activity_origin_position}")
+    print(f"Activity original position received in dice_impressed(): {activity_origin_position}")
+    logger.debug(f"Activity original name received in dice_impressed(): {activity_origin_name}")
+    print(f"Activity original position name in dice_impressed(): {activity_origin_name}")
+
     features_names = cf_df.columns.values[:-1]
     feature_selection = CONF['feature_selection']
     dataset = ''.join(CONF['data'].split('/')[2:3]).replace('.xes', '')
@@ -100,6 +113,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
     time_start_i = datetime.now()
 
     if method == 'iterative':
+        logger.debug("dice_impressed / method = iterative")
         while total_traces <  k:
             batch_size = np.random.choice([10,15,20,25,30])
 
@@ -109,7 +123,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                        total_CFs=batch_size,dataset=dataset+'_'+str(CONF['prefix_length']),
                                                                             proximity_weight=proximity_weight,
                                                                             diversity_weight=diversity_weight,sparsity_weight=sparsity_weight,
-                                                                            features_to_vary=features_to_vary,random_seed=random_seed)
+                                                                            features_to_vary=features_to_vary,random_seed=random_seed, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
 
             dice_result_same = dice_query_instance.generate_counterfactuals(x,encoder=encoder, desired_class=int(predicted_outcome),
                                                                        verbose=False,
@@ -118,7 +132,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                             proximity_weight=proximity_weight,
                                                                             diversity_weight=diversity_weight,
                                                                             sparsity_weight=sparsity_weight,features_to_vary=features_to_vary,
-                                                                            random_seed=random_seed)
+                                                                            random_seed=random_seed, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
 
             generated_cfs_flip = dice_result_flip.cf_examples_list[0].final_cfs_df
             cf_list_flip = np.array(generated_cfs_flip).astype('float64')
@@ -143,6 +157,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
             print('Total traces generated',total_traces,'/',k)
     else:
         if optimization == 'genetic':
+            logger.debug("dice_impressed / method = genetic")
             dice_result_flip = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
                                                                             desired_class=int(1 - predicted_outcome),
                                                                             verbose=False,
@@ -155,7 +170,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                             sparsity_weight=sparsity_weight,
                                                                             categorical_penalty=0.0,
                                                                             # feature_weights=feature_weights,
-                                                                            random_seed=random_seed)
+                                                                            random_seed=random_seed, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
 
             dice_result_same = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
                                                                             desired_class=int(predicted_outcome),
@@ -169,9 +184,9 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                             sparsity_weight=sparsity_weight,
                                                                             categorical_penalty=0.0,
                                                                             # feature_weights=feature_weights,
-                                                                            random_seed=random_seed
-                                                                            )
+                                                                            random_seed=random_seed, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
         elif optimization == 'genetic_conformance':
+            logger.debug("dice_impressed / method = genetic_conformance")
             dice_result_flip = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
                                                                             desired_class=int(1 - predicted_outcome),
                                                                             verbose=False,
@@ -185,7 +200,7 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                             categorical_penalty=0.0,
                                                                             # feature_weights=feature_weights,
                                                                             random_seed=random_seed,
-                                                                            adapted=adapted)
+                                                                            adapted=adapted, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
             dice_result_same = dice_query_instance.generate_counterfactuals(x, encoder=encoder,
                                                                             desired_class=int(predicted_outcome),
                                                                             verbose=False,
@@ -199,10 +214,10 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
                                                                             categorical_penalty=0.0,
                                                                             # feature_weights=feature_weights,
                                                                             random_seed=random_seed,
-                                                                            adapted=adapted)
+                                                                            adapted=adapted, activity_origin_position=activity_origin_position, activity_origin_name = activity_origin_name)
 
-
-        # dice_result_flip and dice_result_same are CounterfactualExplanations object
+          
+        # dice_result_flip and dice_result_same are CounterfactualExplanations objects
         
         generated_cfs_flip = dice_result_flip.cf_examples_list[0].final_cfs_df
         cf_list_flip = np.array(generated_cfs_flip).astype('float64')

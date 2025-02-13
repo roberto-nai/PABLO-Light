@@ -11,7 +11,7 @@ Changelog:
 [2024-11-25]: Added config.yml and relative files to read it.
 [2024-11-25]: Added utilities.dataframe_operations, utilities.general_utilities, utilities.json_operations.
 [2024-11-25]: Moved some constant in the config.yml.
-[2024-11-27]: Added initial conversion of file XES to CSV.
+[2024-11-27]: Added initial conversion of event log file from XES to CSV.
 [2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump
 """
 
@@ -34,8 +34,6 @@ from declare4py.declare4py import Declare4Py
 from declare4py.enums import TraceState
 from pathlib import Path # @RNAI
 import re # @RNAI
-from pm4py.objects.log.util import dataframe_utils # @RNAI
-from pm4py.objects.log.importer.xes import importer as xes_importer # @RNAI
 from pm4py.objects.conversion.log import converter as log_converter # @RNAI
 
 ### LOCAL IMPORT ###
@@ -54,7 +52,7 @@ from nirdizati_light.predictive_model.predictive_model import PredictiveModel, d
 from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
-from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values
+from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index
 from utilities.general_operations import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
@@ -149,9 +147,10 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         encoder, full_df, full_df_named = get_encoded_df(log=log, CONF=CONF)
         print("Prefix and encoded activities df shape:", full_df.shape)
         # print("Prefix and encoded df columns:",full_df.columns)
-        print("Prefix and not ecoded activities df shape:", full_df_named.shape)
+        print("Prefix and not encoded activities df shape:", full_df_named.shape)
         # print("Prefix and not encoded df columns:",full_df_named.columns)
-
+        # print("Prefix and not encoded activities df shape:", full_df_named.head())
+        
         # Saving prefix encoded (full_df with activities encoded, full_df_named with activities not encoded)
         path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_E-{encoding}_activity_encoded.csv"
         print("Saving encoded dataframe to:", path_enc)
@@ -256,10 +255,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
             diversity = 1.0
             sparsity = 0.5
             proximity = 1.0
-            print("qui 1")
-            print(dataset_confs)
+            # print(dataset_confs)
             timestamp = [*dataset_confs.timestamp_col.values()][0]
-            print("qui 2")
             # neighborhood_size = 75
             ### Neighborhood ###
             neighborhood_size = 1 # @RNAI: 1 from factual, 1 for counter-factual (flipped)
@@ -311,7 +308,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 ### Generating a factual and counter-factual (flipped) for every case ###
                 # Starting from the test_df_correct (the correct model prediction dataset), generate
-                print(">>>> Generating factual and counter-factual (flipped) for every case of the sublog")
+                # print(">>>> Generating factual and counter-factual (flipped) for every case of the sublog")
                 # print(range(len(test_df_correct.iloc[:50,:])))
                 # test_df_correct.iloc[:50,:] -> first 50 rows -> range(0, 50)
                 # @RNAI: do query_instance for every entry (case) in sublog
@@ -332,20 +329,22 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 x = 0
 
-                logger.debug(f'Creating sublogs for activity {activity_name}')
+                logger.debug(f"Creating synthetic sublogs for activity '{activity_name}'")
 
                 for case_id_sublog in list_cases:
                     x+=1
-                    # print("Query instance index:", x)
+                    print("Query incremental count:", x)
 
                     # query_instance = test_df_correct.iloc[x, :].to_frame().T # Dataframe with only 1 row and n columns of test_df_correct
                     # query_instance = df_sublog.iloc[x, :].to_frame().T # Dataframe with only 1 row and n columns of test_df_correct
                     query_instance = full_df[full_df['trace_id'] == case_id_sublog].head(1)
-                    case_id = query_instance.iloc[0, 0]
+                    case_id = query_instance.iloc[0, 0] # extract the case id
                     print("Case ID:", case_id)
                     query_instance = query_instance.drop(columns=['trace_id'])
                     # print("Query instance shape:", query_instance.shape)
                     # Shape of the query_instance and of the full_df should be the same
+                    print(f"Query instance dataframe for case ID '{case_id}'") 
+                    print(query_instance.head())
 
                     ### @DOUBT: is it used  in our pipeline???
                     """
@@ -361,7 +360,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     # print("Columns")
                     # print(columns)
 
-                    # Generates a list which containing all columns in the columns list except those that contain the string ‘Timestamp’ in their name.
+                    # Generates a list containing all columns in the columns list except those that contain the string ‘Timestamp’ in their name.
                     features_to_vary = [column for column in columns if 'Timestamp' not in column]
                     # print("features_to_vary")
                     # print(features_to_vary)
@@ -380,7 +379,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     df = full_df_timestamps.loc[query_instance.index][timestamps].reset_index()
                     # print("df")
                     # print(df.head(10))
-
+                    
                     timestamps_query = pd.DataFrame(np.repeat(df.values, neighborhood_size*2, axis=0))
                     timestamps_query.columns = df.columns
                     timestamps_query.drop(columns=['index'], inplace=True)
@@ -390,6 +389,18 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     # time_start = datetime.now() # time to do the explain task - start
                     # full_df.iloc[:, 1:] -> Selects all rows and all columns, excluding the first column (with index 0)
                     # use test_df instead of full_df
+
+                    # cf_df=full_df.iloc[:, 1:]
+                    # print(full_df.head(10))
+
+
+                    ### Obtains the position of the activity in the case-id to verify conformance in the synthetic log
+                    activity_origin_position = find_activity_position_by_index(full_df_named, case_id_sublog, activity_name, "prefix_")
+                    print(f"Actual (original) position of activity '{activity_name}': {activity_origin_position} (-1 if not found)")
+
+                    print("--- Generating synthetic log ---")
+                    print("Counterfactual method:", method) # oneshot
+                    print("Counterfactual optimization:", optimization)
                     synth_log, x_eval, label_list = explain(CONF, predictive_model, encoder=encoder,
                                                             cf_df=full_df.iloc[:, 1:],
                                                             query_instance = query_instance, query_case_id = case_id,
@@ -404,14 +415,16 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                                                             features_to_vary=features_to_vary,
                                                             impressed_pipeline=impressed_pipeline,
                                                             dynamic_cols=dynamic_cols, timestamps=timestamps_query,
-                                                            adapted=adapted)
+                                                            adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_name)
 
                     # Set the name of the case ID following the row index x (Case01 and Case01 are row 0 factual and counter-factual)
                     synth_log['case:concept:name'] = synth_log['case:concept:name'].apply(lambda v: v.replace('Case', f'Case{x}'))
+                    print("Synthetic log preview:")
                     print(synth_log.head(5))
 
                     synth_logs.append(synth_log)
-
+                    print("------")
+                    quit()
                     # time_end = datetime.now()
 
                     # time_cf = (time_end - time_start).total_seconds() # time_delta to do the explain task - start

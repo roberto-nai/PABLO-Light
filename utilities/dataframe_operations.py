@@ -5,6 +5,7 @@ Description: Utilities on pandas dataframe structures.
 
 Changelog:
 [2024-11-25]: Added get_distinct_column_values.
+[2024-02-07]: Added find_activity_position_by_index.
 
 """
 
@@ -222,3 +223,45 @@ def get_distinct_column_values(df: pd.DataFrame, col_name: str, n: int = 0) -> l
         return df[col_name].drop_duplicates().tolist()
     else:
         return df[col_name].drop_duplicates().head(n).tolist()
+    
+
+def find_activity_position_by_index(df: pd.DataFrame, trace_id: int, activity: str, prefix_column: str = "prefix_") -> int:
+    """
+    Finds the position of a given activity within the prefix columns for a specified trace_id.
+
+    Parameters:
+        df (pd.DataFrame): The dataframe containing the trace data.
+        trace_id (int): The identifier of the trace to search within.
+        activity (str): The activity to locate in the prefix columns.
+        prefix_column (str, optional): The prefix used to identify relevant columns. Defaults to "prefix_".
+
+    Returns:
+        int: The position of the activity within the prefix columns, or -1 if not found.
+    """
+    prefix_columns = [col for col in df.columns if col.startswith(prefix_column)]
+
+    row = df[df["trace_id"] == trace_id]
+    if row.empty:
+        return -1  # Trace ID not found
+
+    for i, col in enumerate(prefix_columns, start=1):
+        if row[col].values[0] == activity:
+            return i  # Position is 1-based
+
+    return -1  # Activity not found
+
+
+def find_activity_position_by_name(df: pd.DataFrame, activity_column: str, activity: str) -> int:
+    """
+    Finds the position of a given activity within the specified activity column.
+
+    Parameters:
+        df (pd.DataFrame): The dataframe containing the event log data.
+        activity_column (str): The column name that contains the activities.
+        activity (str): The activity to locate in the column.
+
+    Returns:
+        int: The position of the activity in the sequence (1-based), or -1 if not found.
+    """
+    positions = df.index[df[activity_column] == activity].tolist()
+    return positions[0] + 1 if positions else -1
