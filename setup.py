@@ -1,6 +1,6 @@
 """
 setup.py
-[2025-02-21]: updated dice_ml reference ()
+[2025-02-21]: updated dice_ml reference (https://github.com/roberto-nai/DiCE.git@main)
 """
 from setuptools import setup, find_packages
 
