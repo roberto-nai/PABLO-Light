@@ -11,7 +11,6 @@ setup(
     install_requires=[
         # 'dice_ml @ git+https://github.com/abuliga/DiCE.git@origin/main',
         'dice_ml @ git+https://github.com/roberto-nai/DiCE.git@main',
-        'dice_ml @ git+https://github.com/abuliga/DiCE.git@origin/main',
         'declare4py @ git+https://github.com/abuliga/declare4py.git@main',
         'pymining==0.2',
         'pandas~=1.5.3',
