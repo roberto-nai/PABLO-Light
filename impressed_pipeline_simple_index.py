@@ -445,7 +445,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                     synth_logs.append(synth_log)
                     print("------")
-                    quit()
+                    # quit()
                     # time_end = datetime.now()
 
                     # time_cf = (time_end - time_start).total_seconds() # time_delta to do the explain task - start
@@ -513,7 +513,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     }
                 )
 
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_length}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv" # save the encoding of the synthetic dataframe
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv" # save the encoding of the synthetic dataframe
                 print(f"Saving encoded position of sublog [{j}] activities to:", path_position)
                 encoding_synth_act_pos_df.to_csv(path_position, sep = ",", index = False)
 
@@ -521,10 +521,9 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 # Left-Join the encoding_positions_df with encoding_prefix_df
                 join_synth_orig_df = encoding_synth_act_pos_df.merge(encoding_prefix_act_pos_df, how='left', left_on='Query_CaseID', right_on='trace_id')
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_length}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding
                 print(f"Saving joint position of sublog [{j}] activities to:", path_position)
                 join_synth_orig_df.to_csv(path_position, sep = ",", index = False)
-
 
                 ### DT (white-box) prediction on the joint dataframe ###
 
@@ -593,7 +592,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print(">>>> Saving the results")
 
                 # Saving DT results
-                dic_res = {'datase_name':dataset_name, 'model': ClassificationMethods.DT.name, 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity_accuracy':local_fidelity, 'sublog_delta_m': time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
+                dic_res = {'datase_name':dataset_name, 'model': ClassificationMethods.DT.name, 'prefix_compute': CONF['prefix_compute'], 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity_accuracy':local_fidelity, 'sublog_delta_m': time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
                 print(dic_res)
                 data_list = [dic_res]
                 df_res = pd.DataFrame(data_list)
@@ -613,6 +612,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     feature_importances_df.to_csv(path_res, mode='a', index=False, header=False)
                 else:
                     feature_importances_df.to_csv(path_res, mode='w', index=False, header=True)
+
+                logger.debug('DT and feature importance finished')
 
                 # logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
                 """
@@ -968,8 +969,6 @@ if __name__ == '__main__':
         else:
             print(f"Dataset will be processed (dataset_compute = {dataset_compute})")
             print()
-        
-        quit()
         
         j = 0
 

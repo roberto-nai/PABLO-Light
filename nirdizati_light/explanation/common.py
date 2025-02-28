@@ -45,4 +45,4 @@ def explain(CONF, predictive_model, encoder, cf_df=None,
                               sparsity_weight=sparsity_weight, diversity_weight=diversity_weight
                               , proximity_weight=proximity_weight, features_to_vary=features_to_vary,
                               impressed_pipeline=impressed_pipeline,
-                              dynamic_cols=dynamic_cols, timestamps=timestamps, adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_origin_name, conconformance_penalty = conformance_penalty)
+                              dynamic_cols=dynamic_cols, timestamps=timestamps, adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_origin_name, conformance_penalty = conformance_penalty)

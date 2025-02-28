@@ -8,6 +8,7 @@ Changelog:
 [2025-02-07]: Added activity_origin_position as dice_impressed() parameter and dice_query_instance.generate_counterfactuals() parameter.
 [2025-02-07]: Added activity_origin_name as dice_impressed() parameter and dice_query_instance.generate_counterfactuals() parameter.
 [2025-02-26]: Added conformance_penalty as dice_impressed() parameter and dice_query_instance.generate_counterfactuals() parameter.
+[2025-02-26]: Added control on likelihood_same and likelihood_flip dimension.
 """
 
 import logging
@@ -251,12 +252,16 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
 
     ### Dataframe of the factual case ###
     df_conf_same = pd.DataFrame(data=cf_same_all, columns=features_names)
-    likelihood_same = np.amax(predictive_model.model.predict_proba(cf_same_all),axis=1)
+    likelihood_same =  np.array([]) 
+    if cf_same_all.size > 0:
+        likelihood_same = np.amax(predictive_model.model.predict_proba(cf_same_all),axis=1)
     label_same = predictive_model.model.predict(cf_same_all)
 
     ### Dataframe of the counter-factual (flipped) case ###
     df_conf_flip = pd.DataFrame(data=cf_flip_all, columns=features_names)
-    likelihood_flip = np.amax(predictive_model.model.predict_proba(cf_flip_all),axis=1)
+    likelihood_flip = np.array([]) 
+    if cf_flip_all.size > 0:
+        likelihood_flip = np.amax(predictive_model.model.predict_proba(cf_flip_all),axis=1)
     label_flip = predictive_model.model.predict(cf_flip_all)
     cf_list = np.concatenate([cf_flip_all,cf_same_all])
     # df_conf_flip["Query_CaseID"] =  query_case_id
