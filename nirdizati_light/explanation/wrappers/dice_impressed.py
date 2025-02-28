@@ -7,6 +7,7 @@ Changelog:
 [2024-11-25]: Added Query_CaseID to factual and counter-factual event_log before returning it.
 [2025-02-07]: Added activity_origin_position as dice_impressed() parameter.
 [2025-02-07]: Added activity_origin_name as dice_impressed() parameter.
+[2025-02-26]: Added conformance_penalty as dice_impressed() parameter.
 """
 
 import logging
@@ -33,7 +34,7 @@ single_prefix = ['loreley','loreley_complex']
 
 def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query_case_id, method, support,optimization,
                  timestamp_col_name,model_path,neighborhood_size,random_seed=None,diversity_weight=None,sparsity_weight=None,proximity_weight=None,
-                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None, activity_origin_position = None, activity_origin_name = None):
+                   features_to_vary=None,impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None, activity_origin_position = None, activity_origin_name = None, conformance_penalty = None):
     
     """
     Args:
