@@ -1,102 +1,122 @@
 [
     {
-        "dataset_name": "bpic2012_O_ACCEPTED-COMPLETE",
-        "case_id_column": "case:concept:name",
-        "activity_column": "concept:name",
-        "timestamp_column": "time:timestamp",
-        "prefix_list": [20, 25, 30, 35],
-        "train_val_test_split": [0.7, 0.15, 0.15],
-        "dataset_compute": 0,
-        "rows_ratio": 1
-    },
-    {
         "dataset_name": "synthetic_log_001",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [5, 10],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 1,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
+    },
+    {
+        "dataset_name": "bpic2012_O_ACCEPTED-COMPLETE",
+        "case_id_column": "case:concept:name",
+        "activity_column": "concept:name",
+        "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
+        "prefix_list": [20, 25, 30, 35],
+        "train_val_test_split": [0.7, 0.15, 0.15],
+        "dataset_compute": 0,
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "bpic2012_O_CANCELLED-COMPLETE",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "bpic2012_O_DECLINED-COMPLETE",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "sepsis_cases_1",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [5, 9, 13, 16],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "sepsis_cases_2",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [5, 9, 13, 16],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "sepsis_cases_4",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [5, 9, 13, 16],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "BPIC17_O_ACCEPTED",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [15, 20, 25, 30],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "BPIC17_O_CANCELLED",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [15, 20, 25, 30],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     },
     {
         "dataset_name": "BPIC17_O_REFUSED",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
         "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
         "prefix_list": [15, 20, 25, 30],
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
-        "rows_ratio": 1
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2
     }
 ]

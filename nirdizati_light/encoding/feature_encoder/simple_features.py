@@ -1,3 +1,14 @@
+"""
+simple_features.py
+
+Description: ...
+
+Changelog:
+[2024-02-26]: Added logging
+
+"""
+import logging
+
 from pandas import DataFrame
 from pm4py.objects.log.obj import EventLog, Trace
 
@@ -7,8 +18,10 @@ from nirdizati_light.labeling.common import add_label_column
 ATTRIBUTE_CLASSIFIER = None
 PREFIX_ = 'prefix_'
 
+logger = logging.getLogger(__name__)
 
 def simple_features(log: EventLog, prefix_length, padding, prefix_length_strategy: str, labeling_type, generation_type, feature_list: list = None, target_event: str = None) -> DataFrame:
+    logger.debug('simple_features.py / simple_features()')
     max_prefix_length = get_max_prefix_length(log, prefix_length, prefix_length_strategy, target_event)
     columns = _compute_columns(max_prefix_length)
     columns_number = len(columns)
@@ -26,9 +39,9 @@ def simple_features(log: EventLog, prefix_length, padding, prefix_length_strateg
 
     return DataFrame(columns=columns, data=encoded_data)
 
-
 def _trace_to_row(trace: Trace, prefix_length: int, columns_number: int, prefix_length_strategy: str, padding: bool = True, labeling_type: str = None) -> list:
     """Row in data frame"""
+    logger.debug('simple_features.py / _trace_to_row()')
     trace_row = [trace.attributes['concept:name']]
     trace_row += _trace_prefixes(trace, prefix_length)
     if padding or prefix_length_strategy == PrefixLengthStrategy.PERCENTAGE.value:
@@ -41,6 +54,7 @@ def _trace_prefixes(trace: Trace, prefix_length: int) -> list:
     """List of indexes of the position they are in event_names
 
     """
+    logger.debug('simple_features.py / _trace_prefixes()')
     prefixes = []
     for idx, event in enumerate(trace):
         if idx == prefix_length:

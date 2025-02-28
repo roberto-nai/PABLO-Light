@@ -7,8 +7,9 @@ Changelog:
 [2024-11-25]: Added query_case_id parameter to the method explain.
 [2024-11-25]: Added query_case_id parameter to the method dice_impressed.
 [2025-02-07]: Added logging.
-[2025-02-07]: Added activity_origin_position as explain() parameter.
-[2025-02-07]: Added activity_origin_name as explain() parameter.
+[2025-02-07]: Added activity_origin_position as explain() and dice_impressed() parameter.
+[2025-02-07]: Added activity_origin_name as explain() and dice_impressed() parameter.
+[2025-02-26]: Added conformance_penalty as explain() and dice_impressed() parameter.
 """
 import logging
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ def explain(CONF, predictive_model, encoder, cf_df=None,
             method=None, optimization=None, support=0.9, timestamp_col_name=None,
             model_path=None,random_seed=None,query_instance=None, query_case_id=None, neighborhood_size=None,
             diversity_weight=None,sparsity_weight=None,proximity_weight=None,features_to_vary=None,
-            impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None, activity_origin_position = None, activity_origin_name = None):
+            impressed_pipeline=None,dynamic_cols=None,timestamps=None, adapted=None, activity_origin_position = None, activity_origin_name = None, conformance_penalty = None):
     """ 
     Args:
         activity_origin_position: the position of the activity in the original log (to be compared with the position in the syntetic log)
@@ -44,4 +45,4 @@ def explain(CONF, predictive_model, encoder, cf_df=None,
                               sparsity_weight=sparsity_weight, diversity_weight=diversity_weight
                               , proximity_weight=proximity_weight, features_to_vary=features_to_vary,
                               impressed_pipeline=impressed_pipeline,
-                              dynamic_cols=dynamic_cols, timestamps=timestamps, adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_origin_name)
+                              dynamic_cols=dynamic_cols, timestamps=timestamps, adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_origin_name, conconformance_penalty = conformance_penalty)

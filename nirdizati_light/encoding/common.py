@@ -1,11 +1,10 @@
 """
 common.py
 
-Description: .
+Description: ...
 
 Changelog:
 [2024-11-25]: Added the return of the dataframe with the activity names in the prefix, before encoding (df_org = df.copy()).
-
 """
 
 import logging
@@ -43,8 +42,8 @@ class EncodingTypeAttribute(Enum):
 
 
 TRACE_TO_DF = {
-    EncodingType.SIMPLE.value : simple_features,
-    EncodingType.FREQUENCY.value : frequency_features,
+    EncodingType.SIMPLE.value : simple_features, # recall functions simple_features() defined in simple_features.py
+    EncodingType.FREQUENCY.value : frequency_features, # recall functions frequency_features() defined in frequency_features.py
     # EncodingType.FREQUENCY.value : frequency_features,
     EncodingType.COMPLEX.value : complex_features,
     # EncodingType.DECLARE.value : declare_features,
@@ -65,7 +64,7 @@ def get_encoded_df(log: EventLog, CONF: dict=None, encoder: Encoder=None, train_
         labeling_type=CONF['labeling_type'],
         generation_type=CONF['task_generation_type'],
         feature_list=train_cols,
-        target_event=CONF['target_event'],
+        target_event=CONF['target_event']
     )
 
     logger.debug('get_encoded_df: EXPLODE DATES')

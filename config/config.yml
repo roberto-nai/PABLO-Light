@@ -14,7 +14,7 @@ OUTPUT_DATA: output_data
 
 ### Datasets ###
 DATASETS_CONFIG: datasets.json          # List of datasets to be used and names of feature columns
-DATASETS_NAME: full.xes
+DATASET_FILE_NAME: full.xes
 PREFIX_COL_NAME: 'prefix_'
 
 ### Explanation

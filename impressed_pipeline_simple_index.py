@@ -4,6 +4,7 @@ impressed_pipeline_simple_index.py
 Description:
 
 Changelog:
+[2024-11-25]: updated pipelines_list = [False] (instead of [True, False])
 [2024-11-25]: Added logging.basicConfig() to save application log to file.
 [2024-11-25]: Added prefix_col_name in CONF.
 [2024-11-25]: Added activity_null in CONF.
@@ -13,6 +14,8 @@ Changelog:
 [2024-11-25]: Moved some constant in the config.yml.
 [2024-11-27]: Added initial conversion of event log file from XES to CSV.
 [2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump
+[2025-01-26]: added prefix_compute
+[2025-01-2726]: added prefix_compute
 """
 
 ### IMPORT ###
@@ -52,7 +55,7 @@ from nirdizati_light.predictive_model.predictive_model import PredictiveModel, d
 from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
-from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index
+from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index, get_case_lengths
 from utilities.general_operations import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
@@ -79,7 +82,7 @@ simple_index_dir = str(yaml_config["SIMPLE_INDEX_DIR"])
 process_models_dir = str(yaml_config["PROCESS_MODELS_DIR"])
 datasets_position_dir = str(yaml_config["DATASETS_POSITION_DIR"])
 datasets_config = str(yaml_config["DATASETS_CONFIG"])
-datasets_name = str(yaml_config["DATASETS_NAME"])
+dataset_file_name = str(yaml_config["DATASET_FILE_NAME"])
 output_data_dir = str(yaml_config["OUTPUT_DATA"])
 prefix_col_name = str(yaml_config["PREFIX_COL_NAME"])
 datasets_encoded_dir = str(yaml_config["DATASETS_ENCODED_DIR"])
@@ -107,7 +110,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
     file_extension = Path(CONF['data']).suffix[1:]
     print("File format extension:", file_extension.upper())
 
-    # Extract the log from file
+    # Extract the event log from file
     log = get_log(filepath=CONF['data'])
     # log is a pm4py.objects.log.obj.EventLog instance
 
@@ -131,7 +134,23 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         json.dump(dataset_confs.__dict__, f, ensure_ascii=True, indent=4)
     print()
 
-    print(">>>> Prefix and Encoding data")
+    print(">>>> Prefix (if needed) and Encoding data")
+
+    max_value = CONF['prefix_length']
+    if CONF['prefix_compute'] == 0:
+        logger.debug('PREFIX LENGTH SELECTION (if prefix_compute = 0)')
+        cases_length = get_case_lengths(log_csv, CONF['case_id_column'])
+        max_value = max(cases_length.values(), default=0)
+        print("Max case length will be set to:", max_value)
+        CONF['prefix_length'] = max_value
+        df_case_lengths = pd.DataFrame(cases_length.items(), columns=[CONF['case_id_column'], "case_length"])
+        df_case_lengths = df_case_lengths.sort_values(by=CONF['case_id_column'])
+        path_cases_csv = Path(datasets_dir) / dataset_name / f"{dataset_name}_case_lengths.csv"
+        print("Saving event log case id lengths into CSV:", path_cases_csv)
+        df_case_lengths.to_csv(path_cases_csv, sep=',', index=False)
+
+    logger.debug('PREFIX LENGTH: %s', max_value)
+
     logger.debug('ENCODE DATA')
 
     encodings = [EncodingType.SIMPLE.value]
@@ -152,10 +171,12 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         # print("Prefix and not encoded activities df shape:", full_df_named.head())
         
         # Saving prefix encoded (full_df with activities encoded, full_df_named with activities not encoded)
-        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_E-{encoding}_activity_encoded.csv"
+        prefix_suffix = CONF['prefix_length'] if CONF['prefix_compute'] == 1 else "all"
+
+        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{prefix_suffix}_E-{encoding}_activity_encoded.csv"
         print("Saving encoded dataframe to:", path_enc)
         full_df.to_csv(path_enc, sep = ",", index = False)
-        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_E-{encoding}_activity_named.csv"
+        path_enc = Path(datasets_encoded_dir) / f"{dataset_name}_P-{prefix_suffix}_E-{encoding}_activity_named.csv"
         print("Saving encoded (with activity names) dataframe to:", path_enc)
         full_df_named.to_csv(path_enc, sep = ",", index = False)
 
@@ -175,7 +196,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
         sorted_activity_names = sorted(list_activities_prefix)
         # Create a dataframe with the distinct atrivities to track them
         df_activities = pd.DataFrame({"activity_num": range(1, len(sorted_activity_names) + 1),"activity_name": sorted_activity_names})
-        path_activities = Path(datasets_sublog_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_activity_list.csv"
+        path_activities = Path(datasets_sublog_dir) / f"{dataset_name}_P-{prefix_suffix}_activity_list.csv"
         print("Saving activities list to:", path_activities)
         df_activities.to_csv(path_activities, sep=',', index=False)
         print()
@@ -302,7 +323,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 print(f"Sublog [{j}] shape:", df_sublog.shape)
                 print(f"Sublog [{j}] distinct cases:", df_sublog['trace_id'].nunique())
-                path_sub = Path(datasets_sublog_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}.csv"
+                path_sub = Path(datasets_sublog_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}.csv"
                 print("Saving sublog to:", path_sub)
                 df_sublog.to_csv(path_sub, sep = ",", index = False)
 
@@ -415,7 +436,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                                                             features_to_vary=features_to_vary,
                                                             impressed_pipeline=impressed_pipeline,
                                                             dynamic_cols=dynamic_cols, timestamps=timestamps_query,
-                                                            adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_name)
+                                                            adapted=adapted, activity_origin_position = activity_origin_position, activity_origin_name = activity_name, conformance_penalty = CONF['conformance_penalty'])
 
                     # Set the name of the case ID following the row index x (Case01 and Case01 are row 0 factual and counter-factual)
                     synth_log['case:concept:name'] = synth_log['case:concept:name'].apply(lambda v: v.replace('Case', f'Case{x}'))
@@ -448,7 +469,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 final_synth_log_cases = final_synth_log['Query_CaseID'].nunique() # number of distinct cases in the final synth log
 
-                path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth.csv"
+                path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth.csv"
                 print("Saving synthetic data of sublog [{j}] to:", path_synth)
                 final_synth_log.to_csv(path_synth, sep = ",", index = False)
 
@@ -457,7 +478,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
                 encoding_prefix_act_pos_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_origin_pos_enc.csv" # save the encoding of the original dataframe
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_origin_pos_enc.csv" # save the encoding of the original dataframe
 
                 # Rename the obtained values (_o for original columns))
                 column_rename_mapping = {
@@ -492,7 +513,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                     }
                 )
 
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv" # save the encoding of the synthetic dataframe
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_length}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth_pos_enc.csv" # save the encoding of the synthetic dataframe
                 print(f"Saving encoded position of sublog [{j}] activities to:", path_position)
                 encoding_synth_act_pos_df.to_csv(path_position, sep = ",", index = False)
 
@@ -500,7 +521,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 # Left-Join the encoding_positions_df with encoding_prefix_df
                 join_synth_orig_df = encoding_synth_act_pos_df.merge(encoding_prefix_act_pos_df, how='left', left_on='Query_CaseID', right_on='trace_id')
-                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{CONF['prefix_length']}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding
+                path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_length}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_join_pos_enc.csv" # save the joint encoding
                 print(f"Saving joint position of sublog [{j}] activities to:", path_position)
                 join_synth_orig_df.to_csv(path_position, sep = ",", index = False)
 
@@ -889,15 +910,13 @@ if __name__ == '__main__':
 
     ### Pipeline ###
     print("> Starting the pipelines")
-    print()
 
     # pipelines = [True, False]
     pipelines_list = [False] # @RNAI
     pipelines_list_len = len(pipelines_list)
     print(f"Pipeline list values ({pipelines_list_len}): {pipelines_list}")
-    print()
+    print(f"Datasets that will be parsed: {datasets_list_len}")
 
-    print("Datasets that will be parsed: {datasets_n} / {datasets_list_len}")
     print()
 
     i = 0 # Dataset counter
@@ -905,43 +924,68 @@ if __name__ == '__main__':
         i+=1
         print(">> Pipeline on specific dataset")
         print(f"[{i} / {datasets_list_len}]")
+
+        # Get data from JSON
         dataset_name = item['dataset_name']
-        print("Dataset name:", dataset_name)
-        compute = item["dataset_compute"]
+        dataset_compute = item["dataset_compute"]
         rows_ratio = int(item["rows_ratio"]) # Ratio of lines to be parsed to the total (1 = all)
-        print("Dataset rows ratio (1 = all):", rows_ratio)
-        if compute == 0:
-            print("Dataset skipped (compute = 0)")
-            continue
+
+        prefix_compute =  int(item['prefix_compute'])
         prefix_lengths = item['prefix_list']
         prefix_lengths_len = len(prefix_lengths)
-        print(f"Dataset prefix lengths ({prefix_lengths_len}):", prefix_lengths)
+
         train_val_test_split = item['train_val_test_split']
-        print()
-        j = 0 # Dataset + Prefix counter
-        for prefix_length in prefix_lengths:
+
+        conformance_penalty = float(item['conformance_penalty'])
+
+        print("Dataset name:", dataset_name)
+
+        print("Prefix compute (0 = no):", prefix_compute)
+        print(f"Dataset prefix lengths ({prefix_lengths_len}):", prefix_lengths)
+
+        print("Dataset rows ratio (1 = all):", rows_ratio)
+
+        print("Conformance penalty:", conformance_penalty)
+
+        path_dataset = Path(datasets_dir) / dataset_name / dataset_file_name 
+        print("Dataset path:", path_dataset)
+
+        path_output = Path('..') / output_data_dir
+        print("Output path:", path_output)
+
+        if 'bpic2012' in dataset_name:
+            seed = 48
+        elif 'sepsis' in dataset_name:
+            seed = 56
+        else:
+            seed = 48
+        print("Seed:", seed)
+
+        if dataset_compute == 0:
+            print(f"Dataset will *not* be processed (dataset_compute = {dataset_compute})")
+            print()
+            continue
+        else:
+            print(f"Dataset will be processed (dataset_compute = {dataset_compute})")
+            print()
+        
+        quit()
+        
+        j = 0
+
+        ### Version without prefixes ###
+        if prefix_compute == 0:
+            print(">> Prefix not computed")
             print(">>> Setting up the pipeline")
-            j+=1
-            print(f"[{i}.{j} / {datasets_list_len}]")
-            print("Prefix length:", prefix_length)
             for pipeline in pipelines_list:
-                if 'bpic2012' in dataset_name:
-                    seed = 48
-                elif 'sepsis' in dataset_name:
-                    seed = 56
-                else:
-                    seed = 48
-                print("Seed:", seed)
-                # print(os.path.join('datasets', dataset, 'full.xes'))
-                path_dataset = Path(datasets_dir) / dataset_name / datasets_name # @RNAI
-                print("Dataset path:", path_dataset)
-                path_output = Path('..') / output_data_dir
+                j+=1
+                print(f"[{i}.{j} / {datasets_list_len}]")
                 CONF = {
                     'data': path_dataset.as_posix(),
                     'train_val_test_split': train_val_test_split,
                     'output': path_output.as_posix(), # @TODO: where is used
                     'prefix_length_strategy': PrefixLengthStrategy.FIXED.value,
-                    'prefix_length': prefix_length,
+                    'prefix_length': prefix_compute, # 0 if no prefix are computed (transformed in max possible prefix legth in run_simple_pipeline())
                     'rows_ratio': rows_ratio,
                     'padding': True,  # @TODO: why use of padding?
                     'feature_selection': EncodingType.SIMPLE_TRACE.value,
@@ -960,15 +1004,63 @@ if __name__ == '__main__':
                     'seed': seed,
                     'impressed_pipeline': pipeline,
                     'prefix_col_name': prefix_col_name,
-                    'activity_null': 0
+                    'activity_null': 0,
+                    'prefix_compute': prefix_compute,
+                    'case_id_column': item['case_id_column'],
+                    'conformance_penalty': conformance_penalty
                 }
-                print(">>> Starting the pipeline")
 
-                dic_res
+                print(">>>> Starting the pipeline")
 
                 run_simple_pipeline(CONF=CONF, dataset_name=dataset_name)
 
                 print()
+
+        j = 0 
+
+        ### Version with prefixes ###
+        if prefix_compute == 1:
+            print(">> Prefix compute")
+            for prefix_length in prefix_lengths:
+                print(">>> Setting up the pipeline")
+                j+=1
+                print(f"[{i}.{j} / {datasets_list_len}]")
+                print("Prefix length:", prefix_length)
+                for pipeline in pipelines_list:
+                    CONF = {
+                        'data': path_dataset.as_posix(),
+                        'train_val_test_split': train_val_test_split,
+                        'output': path_output.as_posix(), # @TODO: where is used
+                        'prefix_length_strategy': PrefixLengthStrategy.FIXED.value,
+                        'prefix_length': prefix_length,
+                        'rows_ratio': rows_ratio,
+                        'padding': True,  # @TODO: why use of padding?
+                        'feature_selection': EncodingType.SIMPLE_TRACE.value,
+                        'task_generation_type': TaskGenerationType.ONLY_THIS.value,
+                        'attribute_encoding': EncodingTypeAttribute.LABEL.value,  # LABEL, ONEHOT
+                        'labeling_type': LabelTypes.ATTRIBUTE_STRING.value,
+                        'predictive_model': ClassificationMethods.XGBOOST.value,  # RANDOM_FOREST, LSTM, PERCEPTRON
+                        'explanator': ExplainerType.DICE_IMPRESSED.value,  # SHAP, LRP, ICE, DICE
+                        'threshold': 13,
+                        'top_k': 10,
+                        'hyperparameter_optimisation': True,
+                        'hyperparameter_optimisation_target': HyperoptTarget.AUC.value,
+                        'hyperparameter_optimisation_epochs': 20,
+                        'time_encoding': TimeEncodingType.NONE.value,
+                        'target_event': None,
+                        'seed': seed,
+                        'impressed_pipeline': pipeline,
+                        'prefix_col_name': prefix_col_name,
+                        'activity_null': 0,
+                        'prefix_compute': prefix_compute
+                    }
+
+                    print(">>>> Starting the pipeline")
+
+                    run_simple_pipeline(CONF=CONF, dataset_name=dataset_name)
+
+                    print()
+        print()
 
     end_time = datetime.now().replace(microsecond=0)
     print("End process:", str(end_time))
@@ -979,6 +1071,9 @@ if __name__ == '__main__':
     print("Time to process in min:", str(delta_min))
     print("Time to process in sec:", str(delta_sec))
     print()
+    
+    logger.debug("End process:", str(end_time))
+    logger.debug("Time to process:", str(delta_time))
 
     print()
     print("*** PROGRAM END ***")

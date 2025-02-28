@@ -6,7 +6,7 @@ Description: Utilities on pandas dataframe structures.
 Changelog:
 [2024-11-25]: Added get_distinct_column_values.
 [2024-02-07]: Added find_activity_position_by_index.
-
+[2024-02-07]: Added get_case_lengths (useful for prefix_compute = 0).
 """
 
 import pandas as pd
@@ -224,7 +224,6 @@ def get_distinct_column_values(df: pd.DataFrame, col_name: str, n: int = 0) -> l
     else:
         return df[col_name].drop_duplicates().head(n).tolist()
     
-
 def find_activity_position_by_index(df: pd.DataFrame, trace_id: int, activity: str, prefix_column: str = "prefix_") -> int:
     """
     Finds the position of a given activity within the prefix columns for a specified trace_id.
@@ -250,7 +249,6 @@ def find_activity_position_by_index(df: pd.DataFrame, trace_id: int, activity: s
 
     return -1  # Activity not found
 
-
 def find_activity_position_by_name(df: pd.DataFrame, activity_column: str, activity: str) -> int:
     """
     Finds the position of a given activity within the specified activity column.
@@ -265,3 +263,17 @@ def find_activity_position_by_name(df: pd.DataFrame, activity_column: str, activ
     """
     positions = df.index[df[activity_column] == activity].tolist()
     return positions[0] + 1 if positions else -1
+
+def get_case_lengths(event_log: pd.DataFrame, group_column: str) -> dict:
+    """
+    Returns a dictionary with unique values from the specified column as keys and their sequence length as values.
+    
+    Parameters:
+        event_log (pd.DataFrame): DataFrame containing the event log.
+        group_column (str): Column name to group by (e.g., 'case:concept:name').
+    
+    Returns:
+        dict: A dictionary where keys are unique values from the specified column and values are the count of events.
+    """
+    case_counts = event_log[group_column].value_counts().to_dict()
+    return case_counts
