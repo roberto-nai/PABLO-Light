@@ -9,7 +9,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 1,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "bpic2012_O_ACCEPTED-COMPLETE",
@@ -21,7 +22,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "bpic2012_O_CANCELLED-COMPLETE",
@@ -33,7 +35,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "bpic2012_O_DECLINED-COMPLETE",
@@ -45,7 +48,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "sepsis_cases_1",
@@ -57,7 +61,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "sepsis_cases_2",
@@ -69,7 +74,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "sepsis_cases_4",
@@ -81,7 +87,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "BPIC17_O_ACCEPTED",
@@ -93,7 +100,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "BPIC17_O_CANCELLED",
@@ -105,7 +113,8 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     },
     {
         "dataset_name": "BPIC17_O_REFUSED",
@@ -117,6 +126,7 @@
         "train_val_test_split": [0.7, 0.15, 0.15],
         "dataset_compute": 0,
         "rows_ratio": 1,
-        "conformance_penalty": 0.2
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
     }
 ]

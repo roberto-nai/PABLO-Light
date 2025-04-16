@@ -13,9 +13,10 @@ Changelog:
 [2024-11-25]: Added utilities.dataframe_operations, utilities.general_utilities, utilities.json_operations.
 [2024-11-25]: Moved some constant in the config.yml.
 [2024-11-27]: Added initial conversion of event log file from XES to CSV.
-[2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump
-[2025-01-26]: added prefix_compute
-[2025-01-2726]: added prefix_compute
+[2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump.
+[2025-01-26]: added prefix_compute (if 0, the prefix length will be the same as the case length).
+[2025-01-26]: added activity_original_position_encoding.
+[2024-04-14]: Added compute_activity_positions.
 """
 
 ### IMPORT ###
@@ -55,7 +56,7 @@ from nirdizati_light.predictive_model.predictive_model import PredictiveModel, d
 from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
-from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index, get_case_lengths
+from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index, get_case_lengths, compute_activity_positions
 from utilities.general_operations import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
@@ -470,8 +471,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 final_synth_log_cases = final_synth_log['Query_CaseID'].nunique() # number of distinct cases in the final synth log
 
                 path_synth = Path(datasets_synth_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_synth.csv"
-                print("Saving synthetic data of sublog [{j}] to:", path_synth)
+                print(f"Saving synthetic data of sublog [{j}] to: {path_synth}")
                 final_synth_log.to_csv(path_synth, sep = ",", index = False)
+
+                ### 2025-04-14: for each complete syntethic log, get the activity position in the case id ###
+                activity_positions = compute_activity_positions(final_synth_log, id_column="case:concept:name", activity=activity_name)
+                print(f"Activity '{activity_name}' positions in the synthetic log: {activity_positions}")
+
 
                 ### Creating an encoding based on activity repetitions from the original prefix dataframe ###
                 logger.debug('Creating an encoding based on activity repetitions from the original prefix dataframe')
@@ -535,8 +541,15 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 join_synth_orig_df.drop(columns=col_drop,inplace=True)
                 join_synth_orig_df.rename(columns={"case:label": "label"}, inplace=True)
 
+                ### Before applying DT, if activity_original_position_encoding is False, use only synth_pos_enc ### 
+                if CONF['activity_original_position_encoding'] == 0:
+                    join_synth_orig_df = join_synth_orig_df.drop(columns=['activity_first_o', 'activity_last_o', 'activity_repetition_o'])
+
                 # training, validation, and test starting from the join_synth_orig_df
                 # stratify to get same label distribution of the original df
+
+                print("Columns input of the the glass-box model:", join_synth_orig_df.columns)
+                print()
 
                 train, test = train_test_split(join_synth_orig_df, test_size=testing_percentage, random_state=42, stratify=join_synth_orig_df['label'])
                 train_dt, val_dt = train_test_split(train, test_size=testing_percentage, random_state=42, stratify=train['label'])
@@ -570,12 +583,18 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 features_imp = glass_box.model.feature_importances_
                 feature_importances_df = pd.DataFrame({
                 'dataset_name': dataset_name,
+                'cases': df_sublog_len,
                 'model': ClassificationMethods.DT.name,
+                'preix_compute': CONF['prefix_compute'],
                 'prefix_len': CONF['prefix_length'],
                 'encoding_name': encoding,
                 'activity': activity_name,
+                'activity_pos_min': activity_positions['min_pos'],
+                'activity_pos_max': activity_positions['max_pos'],
+                'activity_pos_avg': activity_positions['mean_pos'],
                 'feature': features_cols,
                 'importance': features_imp,
+                'local_fidelity': local_fidelity,
                 'file_name': path_position.as_posix()
                 })
                 feature_importances_df = feature_importances_df.sort_values(by=['feature','importance'], ascending=[True, False])
@@ -939,6 +958,8 @@ if __name__ == '__main__':
 
         conformance_penalty = float(item['conformance_penalty'])
 
+        activity_original_position_encoding = int(item['activity_original_position_encoding'])
+
         print("Dataset name:", dataset_name)
 
         print("Prefix compute (0 = no):", prefix_compute)
@@ -1006,7 +1027,8 @@ if __name__ == '__main__':
                     'activity_null': 0,
                     'prefix_compute': prefix_compute,
                     'case_id_column': item['case_id_column'],
-                    'conformance_penalty': conformance_penalty
+                    'conformance_penalty': conformance_penalty,
+                    'activity_original_position_encoding': activity_original_position_encoding
                 }
 
                 print(">>>> Starting the pipeline")
@@ -1051,7 +1073,8 @@ if __name__ == '__main__':
                         'impressed_pipeline': pipeline,
                         'prefix_col_name': prefix_col_name,
                         'activity_null': 0,
-                        'prefix_compute': prefix_compute
+                        'prefix_compute': prefix_compute,
+                        'activity_original_position_encoding': activity_original_position_encoding
                     }
 
                     print(">>>> Starting the pipeline")
@@ -1071,8 +1094,8 @@ if __name__ == '__main__':
     print("Time to process in sec:", str(delta_sec))
     print()
     
-    logger.debug("End process:", str(end_time))
-    logger.debug("Time to process:", str(delta_time))
+    logger.debug(f"End process: {str(end_time)}")
+    logger.debug(f"Time to process: {str(delta_time)}")
 
     print()
     print("*** PROGRAM END ***")

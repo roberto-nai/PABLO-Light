@@ -16,13 +16,17 @@ Contains prefixes (P) and its encoding (E).
 
 ### /datasets_positions
 Contains encoding of activity positions after synthesised data generation (/datasets_synth).  
+Contains: activity_first_s, activity_last_s, activity_repetition_s of the synthetic trace and activity_first_o, activity_last_o, activity_repetition_o of the original one.  
 
 ### /datasets_sublog  
 Contains the sublogs of each case id, created on the basis of the generated prefix (/datasets_encoded).  
+P-all means no prefix but complete event log.  
+S-sublog count.  
+A-activity_name.    
 
 ### /datasets_synth
 Contains the synthetic dataset, generated from the sublogs (/datasets_sublog).  
-
+R_number of cases.  
 
 
 @TODO: timestamps in dice_impressed functions

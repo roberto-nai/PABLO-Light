@@ -7,6 +7,7 @@ Changelog:
 [2024-11-25]: Added get_distinct_column_values.
 [2024-02-07]: Added find_activity_position_by_index.
 [2024-02-07]: Added get_case_lengths (useful for prefix_compute = 0).
+[2024-04-14]: Added compute_activity_positions.
 """
 
 import pandas as pd
@@ -277,3 +278,32 @@ def get_case_lengths(event_log: pd.DataFrame, group_column: str) -> dict:
     """
     case_counts = event_log[group_column].value_counts().to_dict()
     return case_counts
+
+def compute_activity_positions(df: pd.DataFrame, id_column: str, activity: str, activity_column: str = "concept:name") -> dict:
+    """
+    Computes the minimum, maximum, and average position of a specified activity
+    across all cases, grouped by the given ID column.
+
+    Parameters:
+        df (pd.DataFrame): The input event log dataframe.
+        id_column (str): The name of the column identifying the case ID.
+        activity (str): The activity whose position statistics are to be computed.
+        activity_column (str): The name of the column containing activity labels.
+
+    Returns:
+        dict: A dictionary with the minimum, maximum, and average position of the activity.
+    """
+    positions = []
+
+    for _, group in df.groupby(id_column):
+        activities = group[activity_column].tolist()
+        positions.extend([i for i, act in enumerate(activities) if act == activity])
+
+    if not positions:
+        return {"min": None, "max": None, "mean": None}
+
+    return {
+        "min_pos": min(positions),
+        "max_pos": max(positions),
+        "mean_pos": sum(positions) / len(positions)
+    }

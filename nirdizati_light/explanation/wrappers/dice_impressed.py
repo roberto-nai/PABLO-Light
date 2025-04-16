@@ -9,6 +9,7 @@ Changelog:
 [2025-02-07]: Added activity_origin_name as dice_impressed() parameter and dice_query_instance.generate_counterfactuals() parameter.
 [2025-02-26]: Added conformance_penalty as dice_impressed() parameter and dice_query_instance.generate_counterfactuals() parameter.
 [2025-02-26]: Added control on likelihood_same and likelihood_flip dimension.
+[2025-03-02]: added control on label dimension
 """
 
 import logging
@@ -295,11 +296,30 @@ def dice_impressed(CONF, predictive_model, cf_df, encoder, query_instance, query
     x_eval['conformance_score_decl']  = sat_score
     encoder.decode(df_cf)
 
-    df_cf['label'] = np.concatenate([label_same,label_flip])
+    # df_cf['label'] = np.concatenate([label_same,label_flip])
+
+    ### 2025-03-02: added control on label dimension ###
+    # Verifica se uno dei due array è vuoto
+    if label_same.size == 0:
+        df_cf['label'] = label_flip
+    elif label_flip.size == 0:
+        df_cf['label'] = label_same
+    else:
+        # Allinea le dimensioni degli array
+        if label_same.ndim == 1:
+            label_same = label_same[:, np.newaxis]  # Aggiunge una dimensione
+        if label_flip.ndim == 1:
+            label_flip = label_flip[:, np.newaxis]
+    
+        # Concatenazione degli array non vuoti
+        df_cf['label'] = np.concatenate([label_same, label_flip], axis=0)
+    ### 
+    
     df_cf['likelihood'] = np.concatenate([likelihood_same,likelihood_flip])
     cf_list_all = np.concatenate([cf_flip_all,cf_same_all])
     
     df_cf = df_cf.drop_duplicates().reset_index(drop=True)
+
     df_cf = df_cf[df_cf['likelihood'] > 0.5]
 
     try:
