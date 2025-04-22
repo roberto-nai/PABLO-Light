@@ -16,7 +16,8 @@ Changelog:
 [2025-01-22]: added dataset_confs.__dict__ to show the dataset configuration used and JSON dump.
 [2025-01-26]: added prefix_compute (if 0, the prefix length will be the same as the case length).
 [2025-01-26]: added activity_original_position_encoding.
-[2024-04-14]: Added compute_activity_positions.
+[2025-04-14]: Added compute_activity_positions.
+[2025-04-14]: Added retrieve_best_model_v2 function.
 """
 
 ### IMPORT ###
@@ -48,7 +49,7 @@ from nirdizati_light.encoding.time_encoding import TimeEncodingType
 from nirdizati_light.evaluation.common import evaluate_classifier
 from nirdizati_light.explanation.common import ExplainerType, explain
 from nirdizati_light.pattern_discovery.common import discovery
-from nirdizati_light.hyperparameter_optimisation.common import retrieve_best_model, HyperoptTarget
+from nirdizati_light.hyperparameter_optimisation.common import retrieve_best_model, retrieve_best_model_v2, HyperoptTarget
 from nirdizati_light.labeling.common import LabelTypes
 from nirdizati_light.log.common import get_log,import_log_csv
 from nirdizati_light.predictive_model.common import ClassificationMethods, get_tensor
@@ -56,10 +57,11 @@ from nirdizati_light.predictive_model.predictive_model import PredictiveModel, d
 from nirdizati_light.explanation.wrappers.dice_impressed import model_discovery
 from nirdizati_light.pattern_discovery.utils.Alignment_Check import alignment_check
 import category_encoders as ce
-from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v1, encode_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index, get_case_lengths, compute_activity_positions
+from utilities.dataframe_operations import encode_activities_positions_and_repetitions_v2, encode_activities_positions_and_repetitions_v1, encode_all_activities_positions_and_repetitions_v1, encode_all_activities_positions_and_repetitions_v2, dictionary_unique_values, get_distinct_column_values, find_activity_position_by_index, get_case_lengths, compute_activity_positions, get_label_percentages, plot_feature_importances
 from utilities.general_operations import create_directory, create_nested_directory
 from utilities.json_operations import extract_data_from_json
 from config import config_reader
+from sklearn.tree import DecisionTreeClassifier
 
 logging.basicConfig(level=logging.DEBUG,
                     filename="app.log",  # Application log file name
@@ -79,6 +81,7 @@ datasets_dir = str(yaml_config["DATASETS_DIR"])
 datasets_sublog_dir = str(yaml_config["DATASETS_SUBLOG_DIR"])
 datasets_synth_dir = str(yaml_config["DATASETS_SYNTH_DIR"])
 results_dir = str(yaml_config["RESULTS_DIR"])
+results_plot_dir = str(yaml_config["RESULTS_PLOT_DIR"])
 simple_index_dir = str(yaml_config["SIMPLE_INDEX_DIR"])
 process_models_dir = str(yaml_config["PROCESS_MODELS_DIR"])
 datasets_position_dir = str(yaml_config["DATASETS_POSITION_DIR"])
@@ -329,6 +332,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 df_sublog.to_csv(path_sub, sep = ",", index = False)
 
                 ### Generating a factual and counter-factual (flipped) for every case ###
+
                 # Starting from the test_df_correct (the correct model prediction dataset), generate
                 # print(">>>> Generating factual and counter-factual (flipped) for every case of the sublog")
                 # print(range(len(test_df_correct.iloc[:50,:])))
@@ -466,7 +470,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 final_synth_log = final_synth_log[desired_order]
 
-                final_synth_log = final_synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
+                # final_synth_log = final_synth_log.sort_values(by=['case:concept:name','Query_CaseID'], ascending=True)
+                final_synth_log = final_synth_log.sort_values(by=['Query_CaseID'], ascending=True)
 
                 final_synth_log_cases = final_synth_log['Query_CaseID'].nunique() # number of distinct cases in the final synth log
 
@@ -478,12 +483,12 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 activity_positions = compute_activity_positions(final_synth_log, id_column="case:concept:name", activity=activity_name)
                 print(f"Activity '{activity_name}' positions in the synthetic log: {activity_positions}")
 
-
                 ### Creating an encoding based on activity repetitions from the original prefix dataframe ###
                 logger.debug('Creating an encoding based on activity repetitions from the original prefix dataframe')
 
                 print(">>>> Creating an encoding based on activity repetitions from the original prefix dataframe")
                 encoding_prefix_act_pos_df = encode_activities_positions_and_repetitions_v2(full_df_named, activity_name)
+                # encoding_prefix_act_pos_df = encode_all_activities_positions_and_repetitions_v2(full_df_named)
                 path_position = Path(datasets_position_dir) / f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_origin_pos_enc.csv" # save the encoding of the original dataframe
 
                 # Rename the obtained values (_o for original columns))
@@ -506,8 +511,9 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 print("Activity query (same as sublog):", activity_name)
                 df_attribute_columns = ["likelihood", "Complete Timestamp", "case:label", "Query_CaseID"]
                 encoding_synth_act_pos_df = encode_activities_positions_and_repetitions_v1(final_synth_log, activity_name, df_attribute_columns=df_attribute_columns)
+                # encoding_synth_act_pos_df = encode_all_activities_positions_and_repetitions_v1(df_in = final_synth_log, df_attribute_columns=df_attribute_columns)
 
-                encoding_synth_act_pos_df = encoding_synth_act_pos_df.sort_values(by=['Query_CaseID', 'case:concept:name'], ascending=True)
+                encoding_synth_act_pos_df = encoding_synth_act_pos_df.sort_values(by=['case:concept:name', 'Query_CaseID'], ascending=False)
 
                 # Columns renaming (_s for synth columns)
                 encoding_synth_act_pos_df = encoding_synth_act_pos_df.rename(
@@ -545,6 +551,13 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 if CONF['activity_original_position_encoding'] == 0:
                     join_synth_orig_df = join_synth_orig_df.drop(columns=['activity_first_o', 'activity_last_o', 'activity_repetition_o'])
 
+
+                ### Get the percentage of labels in the dataset by activity_name ###
+                logger.debug(f'Get the percentage of labels in the dataset by activity_name: {activity_name}')
+                print(">>>> Get the percentage of labels in the dataset by activity_name")
+                label_percentages = get_label_percentages(join_synth_orig_df, 'label')
+                print(f"Label percentages (column 'label'):", label_percentages)
+
                 # training, validation, and test starting from the join_synth_orig_df
                 # stratify to get same label distribution of the original df
 
@@ -564,13 +577,39 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 val_dt = val_dt.rename(str, axis="columns")
 
                 glass_box = PredictiveModel(DT_CONF, DT_CONF['predictive_model'], train_dt, val_dt)
+                print("train_dt shape:", train_dt.shape)
+                print("train_dt colums:", train_dt.columns)
+                print("val_dt shape:", val_dt.shape)
+                print("val_dt colums:", val_dt.columns)
+
+                if train_dt.isnull().any().any():
+                    print("WARNING: Training data contains NaN values. Check the data.")
+                    logger.debug(f'WARNING: Training data contains NaN values. Check the data. Activity {activity_name}')
+                    # Handle NaN values (e.g., drop rows, fill with mean, etc.)
+                    train_dt = train_dt.dropna()  # Example: drop rows with NaN values
+                if val_dt.isnull().any().any():
+                    print("WARNING: Validation data contains NaN values. Check the data.")
+                    logger.debug(f'WARNING: Training data contains NaN values. Check the data. Activity {activity_name}')
+                    # Handle NaN values (e.g., drop rows, fill with mean, etc.)
+                    val_dt = val_dt.dropna()  # Example: drop rows with NaN values
+
                 if DT_CONF['hyperparameter_optimisation']:
+                        # glass_box.model, glass_box.config = retrieve_best_model_v2(
                         glass_box.model, glass_box.config = retrieve_best_model(
                             glass_box,
                             DT_CONF['predictive_model'],
                             max_evaluations=DT_CONF['hyperparameter_optimisation_epochs'],
                             target=DT_CONF['hyperparameter_optimisation_target'], seed=DT_CONF['seed']
                             )
+                        
+                if glass_box.model is None:
+                    print("WARNING: Hyperparameter optimisation failed. Using default model.")
+                    logger.debug(f'WARNING: Hyperparameter optimisation failed. Using default model. Activity {activity_name}')
+                    glass_box = PredictiveModel(DT_CONF, DT_CONF['predictive_model'], train_dt, val_dt)
+                    glass_box.model = DecisionTreeClassifier(random_state=DT_CONF['seed'])
+                    # X_train = train_dt  # Nessuna colonna da escludere
+                    # y_train = train_dt['label']
+                    # glass_box.model.fit(X_train, y_train)
 
                 glass_box_preds = glass_box.model.predict(drop_columns(test))
                 scores = glass_box.model.predict_proba(drop_columns(test))
@@ -580,7 +619,38 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
 
                 ### Get DT features importance ###
                 features_cols = drop_columns(train_dt).columns
+                selected_features = ['activity_first_s', 'activity_last_s', 'activity_repetition_s']
                 features_imp = glass_box.model.feature_importances_
+                # features_imp is a numpy array with the importance of each feature
+                """
+                # Create a dictionary mapping each feature to its importance
+                feature_importance_mapping = dict(zip(features_cols, np.round(features_imp, 3)))
+
+                # Create the table associating each case:concept:name with the selected feature importances
+                records = []
+
+                for concept_name in train_dt['concept:name']: # concept_name is the activity name
+                    for feature in selected_features:
+                        importance = feature_importance_mapping.get(feature, None)
+                        concept_name_position = compute_activity_positions(train_dt, id_column="case:concept:name", activity=concept_name)
+                        records.append({
+                            "dataset": dataset_name,
+                            "dataset_model": f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_M-{ClassificationMethods.DT.name}",
+                            'concept:name': concept_name,
+                            'activity_pos_min': concept_name_position['min_pos'],
+                            'activity_pos_max': concept_name_position['max_pos'],
+                            'activity_pos_avg': concept_name_position['mean_pos'],
+                            'feature': feature,
+                            'importance': importance
+                        })
+
+                feature_importances_per_activity = pd.DataFrame(records)
+
+                # Sort the result
+                feature_importances_per_activity = feature_importances_per_activity.sort_values(by=['case:concept:name', 'feature'], ascending=[True, True])
+                """
+                
+                # Get the feature importances (old version for only the specific activity)
                 feature_importances_df = pd.DataFrame({
                 'dataset_name': dataset_name,
                 'cases': df_sublog_len,
@@ -589,6 +659,7 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 'prefix_len': CONF['prefix_length'],
                 'encoding_name': encoding,
                 'activity': activity_name,
+                # 'label_percentages': label_percentages,
                 'activity_pos_min': activity_positions['min_pos'],
                 'activity_pos_max': activity_positions['max_pos'],
                 'activity_pos_avg': activity_positions['mean_pos'],
@@ -597,7 +668,8 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 'local_fidelity': local_fidelity,
                 'file_name': path_position.as_posix()
                 })
-                feature_importances_df = feature_importances_df.sort_values(by=['feature','importance'], ascending=[True, False])
+
+                feature_importances_per_activity = feature_importances_df.sort_values(by=['feature','importance'], ascending=[True, False])
 
                 ### Save results and timing ###
 
@@ -613,28 +685,77 @@ def run_simple_pipeline(CONF=None, dataset_name=None):
                 # Saving DT results
                 dic_res = {'datase_name':dataset_name, 'model': ClassificationMethods.DT.name, 'prefix_compute': CONF['prefix_compute'], 'prefix_len': CONF['prefix_length'], 'encoding_name':encoding, 'activity_name': activity_name, 'sublog_cases': final_synth_log_cases, 'likelihood_mean':likelihood_mean, 'local_fidelity_accuracy':local_fidelity, 'sublog_delta_m': time_delta_sublog_m, 'file_encoded_for_glassbox': path_position.as_posix()}
                 print(dic_res)
-                data_list = [dic_res]
+
+                data_list = [dic_res] # results must be saved in list to be transformed in DataFrame
                 df_res = pd.DataFrame(data_list)
-                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results_lfa.csv"
+                
+                # file_res = f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_M-{ClassificationMethods.DT.name}_results_lfa.csv"
+                file_res = f"{dataset_name}_{ClassificationMethods.DT.name}_results_lfa.csv"
+                path_res = Path(results_dir) / file_res
                 print(f"Path of model '{ClassificationMethods.DT.name}' results:", path_res)
                 logger.debug('Saving DT results to:', path_res)
+                df_res.to_csv(path_res, mode='w', index=False, header=True)
                 if path_res.exists():
                     df_res.to_csv(path_res, mode='a', index=False, header=False)
                 else:
                     df_res.to_csv(path_res, mode='w', index=False, header=True)
 
                 # Saving DT features importance
-                path_res = Path(results_dir) / f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.csv"
+                # file_res = f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_M-{ClassificationMethods.DT.name}_results_fimp.csv"
+                file_res = f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.csv"
+                path_res = Path(results_dir) / file_res
                 print(f"Path of '{ClassificationMethods.DT.name}' feature importance:", path_res)
                 logger.debug('Saving DT results feature importance to:', path_res)
+                # feature_importances_df.to_csv(path_res, mode='w', index=False, header=True)
+                # feature_importances_per_activity.to_csv(path_res, mode='w', index=False, header=True)
                 if path_res.exists():
-                    feature_importances_df.to_csv(path_res, mode='a', index=False, header=False)
+                    feature_importances_per_activity.to_csv(path_res, mode='a', index=False, header=False)
                 else:
-                    feature_importances_df.to_csv(path_res, mode='w', index=False, header=True)
+                    feature_importances_per_activity.to_csv(path_res, mode='w', index=False, header=True)
 
                 logger.debug('DT and feature importance finished')
 
-                # logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
+                ### Plotting DT feature importance ###
+                # file_res = f"{dataset_name}_P-{prefix_suffix}_S-{j}_A-{activity_name}_R_{nrows}-{df_sublog_len}_M{ClassificationMethods.DT.name}_results_fimp.png"
+                file_res = f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.png"
+                print("Plotting DT feature importance to:", file_res)
+                plot_feature_importances(feature_importances_per_activity, dataset_name, activity_name, results_plot_dir, file_res)
+
+                ### Saving to cumulative results ###
+                # Compute the average of the feature importances for the inquiry activity (activity_name)
+                # Filter the dataframe for the specified activity
+                """
+                df_filtered = feature_importances_per_activity[feature_importances_per_activity['activity_name'] == activity_name]
+
+                # Group by 'feature' and compute the mean values
+                df_grouped = df_filtered.groupby('feature').agg({
+                    'importance': 'mean',
+                    'local_fidelity': 'mean'
+                }).reset_index()
+
+                # Add the requested columns
+                df_grouped['dataset_name'] = dataset_name
+                df_grouped['cases'] = df_sublog_len
+                df_grouped['model'] = ClassificationMethods.DT.name
+                df_grouped['prefix_compute'] = CONF['prefix_compute']
+                df_grouped['prefix_len'] = CONF['prefix_length']
+                df_grouped['encoding_name'] = encoding
+                df_grouped['activity'] = activity_name
+                df_grouped['label_percentages'] = label_percentages
+                df_grouped['min_pos'] = activity_positions['min_pos'],
+                df_grouped['max_pos'] = activity_positions['max_pos'],
+                df_grouped['mean_pos'] = activity_positions['mean_pos'],
+
+                file_res = f"{dataset_name}_{ClassificationMethods.DT.name}_results_fimp.csv"
+                path_res = Path(results_dir) / file_res
+                print(f"Path of '{ClassificationMethods.DT.name}' feature importance:", path_res)
+                if path_res.exists():
+                    df_grouped.to_csv(path_res, mode='a', index=False, header=False)
+                else:
+                    df_grouped.to_csv(path_res, mode='w', index=False, header=True)
+                """
+
+                logger.debug('RUN IMPRESSED DISCOVERY AND DECISION TREE PIPELINE')
                 """
                 if impressed_pipeline:
                     discovery_type = 'auto'
@@ -903,6 +1024,9 @@ if __name__ == '__main__':
 
     print("Output directory:", results_dir)
     create_directory(results_dir)
+
+    print("Output directory:", results_plot_dir)
+    create_directory(results_plot_dir)
 
     list_dir_results = [results_dir, simple_index_dir]
     print("Output directories:", list_dir_results)

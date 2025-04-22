@@ -6,6 +6,7 @@ DATASETS_ENCODED_DIR: datasets_encoded  # Directory with datasets encoded
 DATASETS_SUBLOG_DIR: datasets_sublog    # Directory with datasets sublog (from prefixes)
 DATASETS_SYNTH_DIR: datasets_synth      # Directory with datasets syntetic (from sublog)
 RESULTS_DIR: results                    # Directory with ML results
+RESULTS_PLOT_DIR: results_plot         # Directory with ML results plots
 CORRELATIONS_DIR: results_correlation   # Directory with correlation results
 SIMPLE_INDEX_DIR: simple_index
 PROCESS_MODELS_DIR: process_models

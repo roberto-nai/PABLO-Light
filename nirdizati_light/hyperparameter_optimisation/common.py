@@ -1,12 +1,32 @@
+"""
+common.py
+=========
+This module contains the hyperparameter optimization functions for different machine learning models.
+It uses the Hyperopt library to perform the optimization.
+The main function is `retrieve_best_model`, which takes a predictive model, model type, maximum evaluations, target metric, and an optional seed for random number generation.
+
+[2025-02-21]: added logging
+[2025-02-21]: updated retrieve_best_model_v2 to include logging and exception handling
+"""
+
 from enum import Enum
+import logging
 
 import hyperopt
 import numpy as np
 from hyperopt import Trials, hp, fmin
 from hyperopt.pyll import scope
+from hyperopt import tpe, STATUS_OK, STATUS_FAIL
 
 from nirdizati_light.predictive_model.common import ClassificationMethods, RegressionMethods
 
+logging.basicConfig(level=logging.DEBUG,
+                    filename="app.log",  # Application log file name
+                    filemode="w",        # Overwrite the log file at every exectuion
+                    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                    )
+
+logger = logging.getLogger(__name__)
 
 class HyperoptTarget(Enum):
     AUC = 'auc'
@@ -156,6 +176,44 @@ def retrieve_best_model(predictive_model, model_type, max_evaluations, target,se
     best_candidate = trials.best_trial['result']
 
     return best_candidate['model'], best_candidate['config']
+
+def retrieve_best_model_v2(predictive_model, model_type, max_evaluations, target,seed=None):
+    space = _get_space(model_type)
+    trials = Trials()
+
+    def objective(config):
+        print(f"Trying config: {config}")
+        logger.debug(f"Trying config: {config}")
+        try:
+            return predictive_model.train_and_evaluate_configuration(config=config, target=target)
+        except Exception as e:
+            print(f"Trial failed for config {config}: {e}")
+            logger.debug(f"Trial failed for config {config}: {e}")
+            return {'loss': 1e6, 'status': STATUS_FAIL}  # Penalizza il trial fallito
+
+    try:
+        fmin(
+            fn=objective,
+            space=space,
+            algo=tpe.suggest,
+            max_evals=max_evaluations,
+            trials=trials,
+            rstate=np.random.default_rng(seed),
+            catch_eval_exceptions=True
+        )
+    except Exception as e:
+        print(f"Hyperopt failed completely: {e}")
+        logger.debug(f"Hyperopt failed completely: {e}")
+        return None, None
+
+    if not trials.trials:
+        print("WARNING: No successful trials. Returning None.")
+        logger.debug("WARNING: No successful trials. Returning None.")
+        return None, None
+
+    best_candidate = trials.best_trial['result']
+
+    return best_candidate.get('model', None), best_candidate.get('config', None)
 
 '''
 elif model_type is ClassificationMethods.MLP.value:

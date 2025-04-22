@@ -8,9 +8,15 @@ Changelog:
 [2024-02-07]: Added find_activity_position_by_index.
 [2024-02-07]: Added get_case_lengths (useful for prefix_compute = 0).
 [2024-04-14]: Added compute_activity_positions.
+[2024-04-14]: Added encode_all_activities_positions_and_repetitions_v2_new.
+[2024-04-22]: Added get_label_percentages.
+[2024-04-22]: Added plot_feature_importances.
 """
 
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from pathlib import Path
 
 def columns_unique_values(df_in: pd.DataFrame, prefix_col_name: str) -> list:
     """
@@ -121,6 +127,82 @@ def encode_activities_positions_and_repetitions_v1(
     # Convert the results into a dataframe
     return pd.DataFrame(results)
 
+def encode_all_activities_positions_and_repetitions_v1(
+    df_in: pd.DataFrame, 
+    case_id_col: str = "case:concept:name", 
+    activity_col: str = "concept:name", 
+    activity_null: int = 0, 
+    df_attribute_columns: list = None
+) -> pd.DataFrame:
+    """
+    Process the dataframe to compute activity_first, activity_last, and activity_repetition for all distinct activities in each case_id. Optionally includes additional columns from the first occurrence of each case_id.
+    For synthetic dataset.
+
+    Parameters:
+    - df_in: pd.DataFrame - The input dataframe.
+    - case_id_col: str, default "case:concept:name" - The column name representing case IDs.
+    - activity_col: str, default "concept:name" - The column name representing activity names.
+    - activity_null: int or float, default 0 - The value to use if the activity is not found in a case.
+    - df_attribute_columns: List[str], optional - Additional columns to include in the result, taken from the first occurrence of each case_id.
+
+    Returns:
+    - pd.DataFrame - A dataframe with columns [case_id_col, activity, activity_first, activity_last, activity_repetition, *df_attribute_columns].
+    """
+    results = {
+        case_id_col: [],
+        activity_col: [],
+        "activity_first": [],
+        "activity_last": [],
+        "activity_repetition": []
+    }
+    
+    # Add df_attribute_columns to the results dictionary
+    if df_attribute_columns:
+        for col in df_attribute_columns:
+            results[col] = []
+
+    # Group by the case ID column
+    grouped = df_in.groupby(case_id_col)
+    
+    for case_id, group in grouped:
+        group = group.reset_index(drop=True)
+        
+        # Find all distinct activities in this case (excluding nulls)
+        activities_in_case = pd.unique(group[activity_col])
+        activities_in_case = [act for act in activities_in_case if pd.notnull(act)]
+
+        for activity in activities_in_case:
+            # Find the positions where the activity matches
+            activity_positions = group.index[group[activity_col] == activity].tolist()
+            
+            if activity_positions:
+                activity_first = activity_positions[0] + 1  # 1-based indexing
+                activity_last = activity_positions[-1] + 1  # 1-based indexing
+                activity_repetition = len(activity_positions)
+            else:
+                activity_first = activity_null
+                activity_last = activity_null
+                activity_repetition = activity_null
+
+            # Append results
+            results[case_id_col].append(case_id)
+            results[activity_col].append(activity)
+            results["activity_first"].append(activity_first)
+            results["activity_last"].append(activity_last)
+            results["activity_repetition"].append(activity_repetition)
+            
+            # Append attribute columns if requested
+            if df_attribute_columns:
+                for col in df_attribute_columns:
+                    if col in group.columns:
+                        results[col].append(group.iloc[0][col])
+                    else:
+                        results[col].append(None)
+
+    results_df = pd.DataFrame(results)
+    results_df = results_df.sort_values(by=[case_id_col, activity_col]).reset_index(drop=True)
+    return pd.DataFrame(results_df)
+
 def encode_activities_positions_and_repetitions_v2(
     df_in: pd.DataFrame,
     activity_query: str,
@@ -178,6 +260,70 @@ def encode_activities_positions_and_repetitions_v2(
 
     # Convert results dictionary into a dataframe
     return pd.DataFrame(results)
+
+def encode_all_activities_positions_and_repetitions_v2(
+    df_in: pd.DataFrame,
+    case_id_col: str = "trace_id",
+    activity_col_prefix: str = "prefix_",
+    activity_null: int = 0
+) -> pd.DataFrame:
+    """
+    Process the dataframe to compute activity_first, activity_last, and activity_repetition for all distinct activities in each case_id. Resets the counter for each unique case_id.
+    For original dataset.
+
+    Parameters:
+    - df_in: pd.DataFrame - The input dataframe.
+    - case_id_col: str, default "trace_id" - The column name representing case IDs.
+    - activity_col_prefix: str, default "prefix_" - The prefix for activity columns.
+    - activity_null: int, default 0 - The value to use if the activity is not found in a case.
+
+    Returns:
+    - pd.DataFrame - A dataframe with columns [case_id_col, activity, activity_first, activity_last, activity_repetition].
+    """
+    results = {
+        case_id_col: [],
+        "activity_name": [],
+        "activity_first": [],
+        "activity_last": [],
+        "activity_repetition": []
+    }
+
+    # Filter activity columns based on the prefix
+    activity_columns = [col for col in df_in.columns if col.startswith(activity_col_prefix)]
+
+    # Group by the case ID column
+    grouped = df_in.groupby(case_id_col)
+
+    for case_id, group in grouped:
+        # Find all distinct activities in this group (excluding nulls)
+        activities_in_case = pd.unique(group[activity_columns].values.ravel())
+        activities_in_case = [act for act in activities_in_case if pd.notnull(act)]
+
+        for activity in activities_in_case:
+            activity_positions = []
+            for idx, col in enumerate(activity_columns):
+                if group[col].eq(activity).any():
+                    activity_positions.append(idx + 1)  # 1-based indexing
+
+            if activity_positions:
+                activity_first = activity_positions[0]
+                activity_last = activity_positions[-1]
+                activity_repetition = len(activity_positions)
+            else:
+                activity_first = activity_null
+                activity_last = activity_null
+                activity_repetition = activity_null
+
+            # Append results
+            results[case_id_col].append(case_id)
+            results["activity_name"].append(activity)
+            results["activity_first"].append(activity_first)
+            results["activity_last"].append(activity_last)
+            results["activity_repetition"].append(activity_repetition)
+
+    results_df = pd.DataFrame(results)
+    results_df = results_df.sort_values(by=[case_id_col, "activity_name"]).reset_index(drop=True)
+    return pd.DataFrame(results_df)
 
 def dictionary_unique_values(data: dict, exclude_keys: list) -> list:
     """
@@ -305,5 +451,78 @@ def compute_activity_positions(df: pd.DataFrame, id_column: str, activity: str, 
     return {
         "min_pos": min(positions),
         "max_pos": max(positions),
-        "mean_pos": sum(positions) / len(positions)
+        "mean_pos": round(sum(positions) / len(positions),3)
     }
+
+def get_label_percentages(event_log: pd.DataFrame, group_column: str, label_column: str = "label") -> dict:
+    """
+    Returns a dictionary with unique label values as keys and their percentage among all cases as values,
+    grouped by the specified group column.
+
+    Parameters:
+        event_log (pd.DataFrame): DataFrame containing the event log.
+        group_column (str): Column name to group by (e.g., 'case:concept:name').
+        label_column (str, default "label"): Column name containing the labels.
+
+    Returns:
+        dict: A dictionary where keys are unique label values and values are their percentages.
+    """
+    # Take the first label per group (assuming label is constant per group)
+    labels = event_log.groupby(group_column)[label_column].first()
+    
+    # Count occurrences of each label
+    label_counts = labels.value_counts()
+    
+    # Calculate percentages
+    label_percentages = (label_counts / label_counts.sum() * 100).round(2).to_dict()
+    
+    return label_percentages
+
+def plot_feature_importances(df: pd.DataFrame, dataset_name: str, activity_name: str, output_dir: str, output_filename: str) -> None:
+    """
+    Plot horizontal bar chart showing feature importances for a specific activity and save it to a file.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame containing 'activity', 'feature', and 'importance' columns
+    dataset_name (str): Name of the dataset for reference
+    activity_name (str): Name of the activity to filter and plot
+    output_dir (str): Directory where the plot will be saved
+    output_filename (str): Filename for the saved plot
+    """
+    # Select only the required columns and filter by activity name
+    df_selected = df[["activity", "feature", "importance"]]
+    df_selected = df_selected[df_selected["activity"] == activity_name]
+
+    # Set the plot style
+    sns.set(style="whitegrid")
+
+    # Create the plot
+    plt.figure(figsize=(10, 6))
+    barplot = sns.barplot(
+        data=df_selected,
+        y="activity",
+        x="importance",
+        hue="feature",
+        orient="h"
+    )
+
+    # Add the value of importance at the end of each bar with smaller font size
+    for container in barplot.containers:
+        barplot.bar_label(container, fmt="%.2f", label_type="edge", padding=3, fontsize=8)
+
+    # Set plot labels and title
+    plt.xlabel("Importance")
+    plt.ylabel("Activity")
+    # plt.title(f"Feature Importances for Activity '{activity_name}' in Dataset '{dataset_name}'")
+    plt.title(f"Feature Importances for Activity in Dataset '{dataset_name}'")
+    plt.legend(title="Feature", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.tight_layout()
+
+    # Ensure output directory exists
+    output_path = Path(output_dir) / output_filename
+
+    # Save the plot
+    print("Saving plot to:", output_path)
+    plt.savefig(output_path, dpi=300)
+    # plt.savefig(output_path, bbox_inches='tight', dpi=300)
+    plt.close()

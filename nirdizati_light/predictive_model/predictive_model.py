@@ -85,7 +85,8 @@ class PredictiveModel:
 
             return {
                 'status': STATUS_OK,
-                'loss': - result['loss'],  # we are using fmin for hyperopt
+                'loss': - result['loss'],  # we are using fmin for hyperopt (@TODO: check if this is correct)
+                # 'loss': result['loss'],  
                 'exception': None,
                 'config': config,
                 'model': model,

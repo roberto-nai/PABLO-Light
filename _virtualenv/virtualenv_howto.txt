@@ -30,11 +30,11 @@ Pre-operations for Python 3.10 (MacOS):
 	dot.render('test-output', format='png', cleanup=True)
 
 Operations:
-1) In the main PABLO directory create a virtual environment (e.g.: pablo_env) : virtualenv pablo_env
-	1.1) Specify a Python version: ../3.10.12/bin/python3.10 -m venv pablo_env
-2) Activate the environment: source pablo_env/bin/activate
+1) In the main PABLO directory create a virtual environment (e.g.: pablo_env) : virtualenv pablo_env_clone
+	1.1) Specify a Python version: ../3.10.12/bin/python3.10 -m venv pablo_env_clone
+2) Activate the environment: source pablo_env_clone/bin/activate
 	2.1) Check the Python version inside env: python --version
 3) Install the requirements: pip install -e . (or pip install -e . > pip_output.log 2>&1 to save the installation log)
 4) Run the script: python impressed_pipeline_simple_index.py
 5) [When finished] Quit the virtual_evm: deactivate
-6) [Optional] Remove the virtualenv directory (pablo_env): rm -rf pablo_env
+6) [Optional] Remove the virtualenv directory (pablo_env_clone): rm -rf pablo_env_clone

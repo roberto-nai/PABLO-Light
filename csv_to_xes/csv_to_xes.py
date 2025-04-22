@@ -13,7 +13,7 @@ import pm4py
 
 ### GLOBALS ###
 
-input_csv = "synthetic_log_001.csv"  # <-- INPUT: file to be converted
+input_csv = "synthetic_log_A_Loc10.csv"  # <-- INPUT: file to be converted
 csv_sep = ","  # <-- INPUT: CSV file separator
 
 # Mandatory values

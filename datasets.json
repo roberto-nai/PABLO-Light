@@ -13,6 +13,19 @@
         "activity_original_position_encoding": 0
     },
     {
+        "dataset_name": "synthetic_log_A_Loc10",
+        "case_id_column": "case:concept:name",
+        "activity_column": "concept:name",
+        "timestamp_column": "time:timestamp",
+        "prefix_compute": 0,
+        "prefix_list": [5, 10],
+        "train_val_test_split": [0.7, 0.15, 0.15],
+        "dataset_compute": 1,
+        "rows_ratio": 1,
+        "conformance_penalty": 0.2,
+        "activity_original_position_encoding": 0
+    },
+    {
         "dataset_name": "bpic2012_O_ACCEPTED-COMPLETE",
         "case_id_column": "case:concept:name",
         "activity_column": "concept:name",
@@ -20,7 +33,7 @@
         "prefix_compute": 0,
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
-        "dataset_compute": 0,
+        "dataset_compute": 1,
         "rows_ratio": 1,
         "conformance_penalty": 0.2,
         "activity_original_position_encoding": 0
@@ -33,7 +46,7 @@
         "prefix_compute": 0,
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
-        "dataset_compute": 0,
+        "dataset_compute": 1,
         "rows_ratio": 1,
         "conformance_penalty": 0.2,
         "activity_original_position_encoding": 0
@@ -46,7 +59,7 @@
         "prefix_compute": 0,
         "prefix_list": [20, 25, 30, 35],
         "train_val_test_split": [0.7, 0.15, 0.15],
-        "dataset_compute": 0,
+        "dataset_compute": 1,
         "rows_ratio": 1,
         "conformance_penalty": 0.2,
         "activity_original_position_encoding": 0
