@@ -172,6 +172,7 @@ datasets_sublog/*
 datasets_synth/*
 pablo_env/*
 results/*
+results_plot/*
 
 # But do not ignore the directory itself
 !datasets/.gitkeep
@@ -180,6 +181,7 @@ results/*
 !datasets_sublog/.gitkeep
 !datasets_synth/.gitkeep
 !results/.gitkeep
+!results_plot/.gitkeep
 
 # My files
 .env
